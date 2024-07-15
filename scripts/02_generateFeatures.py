@@ -7,13 +7,10 @@
 @Desc    :   use matminer to generate features for the MP bulk modulus data and the experimental data
 """
 
-import logging
-import os
-import sys
-from datetime import datetime
+
 
 # IMPORT DEPENDENCIES------------------------------------------------------------------------------
-import config
+import os
 import pandas as pd
 from matminer.featurizers.composition.element import ElementFraction
 from matminer.featurizers.conversions import StrToComposition
