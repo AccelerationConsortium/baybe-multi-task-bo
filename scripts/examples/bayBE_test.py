@@ -1,15 +1,16 @@
 # -*-coding:utf-8 -*-
-'''
+"""
 @Time    :   2024/07/09 09:38:28
 @Author  :   Daniel Persaud
 @Version :   1.0
 @Contact :   da.persaud@mail.utoronto.ca
 @Desc    :   test working with BayBE using the example on github
-'''
+"""
 
-#%%
-from baybe.targets import NumericalTarget
 from baybe.objectives import SingleTargetObjective
+
+# %%
+from baybe.targets import NumericalTarget
 
 target = NumericalTarget(
     name="Yield",
@@ -17,7 +18,7 @@ target = NumericalTarget(
 )
 objective = SingleTargetObjective(target=target)
 
-#%%
+# %%
 from baybe.parameters import (
     CategoricalParameter,
     NumericalDiscreteParameter,
@@ -47,29 +48,28 @@ parameters = [
     ),
 ]
 
-#%%
+# %%
 from baybe.searchspace import SearchSpace
 
 searchspace = SearchSpace.from_product(parameters)
 
-#%%
-from baybe.recommenders import (
-    # BotorchRecommender,                     # -- NOT WORKING
+# %%
+from baybe.recommenders import (  # BotorchRecommender,                     # -- NOT WORKING
     FPSRecommender,
     TwoPhaseMetaRecommender,
 )
 
 recommender = TwoPhaseMetaRecommender(
-    initial_recommender=FPSRecommender(),   # farthest point sampling
+    initial_recommender=FPSRecommender(),  # farthest point sampling
     # recommender=BotorchRecommender(),       # Bayesian model-based optimization -- NOT WORKING
 )
 
-#%%
+# %%
 from baybe import Campaign
 
 campaign = Campaign(searchspace, objective, recommender)
 
-#%%
+# %%
 df = campaign.recommend(batch_size=3)
 print(df)
 # %%

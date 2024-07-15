@@ -1,24 +1,26 @@
 # -*-coding:utf-8 -*-
-'''
+"""
 @Time    :   2024/07/12 18:43:07
 @Author  :   Daniel Persaud
 @Version :   1.0
 @Contact :   da.persaud@mail.utoronto.ca
 @Desc    :   data injest and cleaning for BayBE multi-task learning (Merck call it transfer learning)
-'''
+"""
 
-#%%
-# IMPORT DEPENDENCIES------------------------------------------------------------------------------
-from mp_api.client import MPRester
-from emmet.core.summary import HasProps
-import config
-import os
 import logging
+import os
 import sys
 from datetime import datetime
-import pandas as pd
 
-#%%
+import config
+import pandas as pd
+from emmet.core.summary import HasProps
+
+# %%
+# IMPORT DEPENDENCIES------------------------------------------------------------------------------
+from mp_api.client import MPRester
+
+# %%
 # SET UP LOGGING-----------------------------------------------------------------------------------
 
 # get the path to the current directory
@@ -28,14 +30,14 @@ strLogFileName = os.path.basename(__file__)
 # split the file name and the extension
 strLogFileName = os.path.splitext(strLogFileName)[0]
 # add .log to the file name
-strLogFileName = os.path.join(f'{strLogFileName}.log')
+strLogFileName = os.path.join(f"{strLogFileName}.log")
 # join the log file name to the current directory
 strLogFilePath = os.path.join(strWD, strLogFileName)
 
 # Initialize logging
 logging.basicConfig(
-    level = logging.INFO,
-    format = "%(asctime)s [%(levelname)s] %(message)s",
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler(strLogFilePath, mode="a"),
         logging.StreamHandler(sys.stdout),
@@ -43,7 +45,7 @@ logging.basicConfig(
 )
 
 
-#%%
+# %%
 # LOAD DATA----------------------------------------------------------------------------------------
 # -----LOAD MATERIALS PROJECT BULK MODULUS DATA WITH MP-API-----
 
@@ -59,22 +61,22 @@ except:
     with MPRester(config.mp_apiKey) as mpr:
         # get all materials with bulk modulus data
         lstMPDocs = mpr.materials.summary.search(
-            has_props = [HasProps.elasticity],
-            fields = ["material_id",
-                      "formula_pretty",
-                      "bulk_modulus"]
-            )
-        
+            has_props=[HasProps.elasticity],
+            fields=["material_id", "formula_pretty", "bulk_modulus"],
+        )
+
     # initialize dictionary to store data
     dicMP = {}
     # loop through each material and store data in dictionary
     for mpDoc_temp in lstMPDocs:
         try:
             # make a new dictionary entry for each material
-            dicMP[mpDoc_temp.material_id] = {"formula": mpDoc_temp.formula_pretty,
-                                             "voigt": mpDoc_temp.bulk_modulus["voigt"],
-                                             "reuss": mpDoc_temp.bulk_modulus["reuss"],
-                                             "vrh": mpDoc_temp.bulk_modulus["vrh"]}
+            dicMP[mpDoc_temp.material_id] = {
+                "formula": mpDoc_temp.formula_pretty,
+                "voigt": mpDoc_temp.bulk_modulus["voigt"],
+                "reuss": mpDoc_temp.bulk_modulus["reuss"],
+                "vrh": mpDoc_temp.bulk_modulus["vrh"],
+            }
         except:
             # check if there is bulk modulus data
             if mpDoc_temp.bulk_modulus is None:
@@ -101,7 +103,7 @@ logging.info("Loaded experimental hardness data from local csv file")
 dfExp.rename(columns={"composition": "strComposition"}, inplace=True)
 
 
-#%%
+# %%
 # CLEAN DATA---------------------------------------------------------------------------------------
 
 # -----CLEAN MATERIALS PROJECT DATA-----
@@ -116,7 +118,7 @@ dfExp.dropna(inplace=True)
 # # for duplicate formulae, take the mean of the hardness values
 # dfExp = dfExp.groupby("Formula").mean().reset_index()
 
-#%%
+# %%
 # SAVE DATA LOCALLY--------------------------------------------------------------------------------
 
 # save the cleaned data to a csv file

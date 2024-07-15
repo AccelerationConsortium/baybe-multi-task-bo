@@ -14,8 +14,6 @@ import os
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from botorch.test_functions.synthetic import Hartmann
-
 from baybe import Campaign
 from baybe.objectives import SingleTargetObjective
 from baybe.parameters import NumericalDiscreteParameter, TaskParameter
@@ -24,6 +22,7 @@ from baybe.simulation import simulate_scenarios
 from baybe.targets import NumericalTarget
 from baybe.utils.botorch_wrapper import botorch_function_wrapper
 from baybe.utils.plotting import create_example_plots
+from botorch.test_functions.synthetic import Hartmann
 
 ### Settings
 
