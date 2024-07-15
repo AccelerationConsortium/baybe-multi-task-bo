@@ -175,12 +175,7 @@ dfX_test_mp = pd.DataFrame({strElement: lstTestPoints[idx].ravel() for idx, strE
 # round the values to 2 decimal places
 dfX_test_mp = dfX_test_mp.round(2)
 # remove rows where the sum of the row is not equal to 1
-dfX_test_mp = dfX_test_mp[dfX_test_mp.sum(axis=1) == 1]
-dfMissingPoints = pd.DataFrame({'Cr': [0.7, 0.6, 0.3, 0.2],
-                                'B': [0.2, 0.3, 0.6, 0.7],
-                                'Nb': [0.1, 0.1, 0.1, 0.1]})
-# add the missing points to the test points
-dfX_test_mp = pd.concat([dfX_test_mp, dfMissingPoints])
+dfX_test_mp = dfX_test_mp[np.isclose(dfX_test_mp.sum(axis=1), 1, atol=1e-3)]
 # sort dfX_test_mp by the columns
 dfX_test_mp = dfX_test_mp.sort_values(by=lstNonZeroCols_exp)
 # reset the index
@@ -191,9 +186,7 @@ dfX_test_exp = pd.DataFrame({strElement: lstTestPoints[idx].ravel() for idx, str
 # round the values to 2 decimal places
 dfX_test_exp = dfX_test_exp.round(2)
 # remove rows where the sum of the row is not equal to 1
-dfX_test_exp = dfX_test_exp[dfX_test_exp.sum(axis=1) == 1]
-# add the missing points to the test points
-dfX_test_exp = pd.concat([dfX_test_exp, dfMissingPoints])
+dfX_test_exp = dfX_test_exp[np.isclose(dfX_test_exp.sum(axis=1), 1, atol=1e-3)]
 # sort dfX_test_exp by the columns
 dfX_test_exp = dfX_test_exp.sort_values(by=lstNonZeroCols_exp)
 # reset the index
@@ -221,7 +214,7 @@ pltTernary(dfCompositionData = dfX_test_mp*100,
               lstElements = lstNonZeroCols_exp,
                 srColor = srY_test_mp,
                 strColorBarLabel = "Voigt Bulk Modulus",
-                strTitle = "Predicted Voigt Bulk Modulus",
+                strTitle = "LR Voigt Bulk Modulus",
                 intMarkerSize = 100)
 
 # -----EXP-----
@@ -229,7 +222,7 @@ pltTernary(dfCompositionData = dfX_test_exp*100,
                 lstElements = lstNonZeroCols_exp,
                 srColor = srY_test_exp,
                 strColorBarLabel = "Hardness",
-                strTitle = "Predicted Hardness",
+                strTitle = "LR Hardness",
                 intMarkerSize = 100)
 
 
@@ -298,20 +291,48 @@ taskParameters = TaskParameter(
 lstParameters = [*lstContinuousParameters, taskParameters]
 
 searchspace = SearchSpace.from_product(parameters=lstParameters, constraints=SumConstraint)
+
 #%%
-# OPTIMIZE THE FUNCTION WITHOUT MULTI-TASK LEARNING------------------------------------------------
+
+N_MC_ITERATIONS = 10
+N_DOE_ITERATIONS = 10
+BATCH_SIZE = 1
 
 results: list[pd.DataFrame] = []
 for p in (0.01, 0.02, 0.05, 0.08, 0.2):
     campaign = Campaign(searchspace=searchspace, objective=objective)
-    initial_data = [lookup_training_task.sample(frac=p) for _ in range(2)]
+    initial_data = [lookup_training_task.sample(frac=p) for _ in range(N_MC_ITERATIONS)]
     result_fraction = simulate_scenarios(
         {f"{int(100*p)}": campaign},
         lookup_test_task,
         initial_data=initial_data,
-        batch_size=2,
-        n_doe_iterations=2,
+        batch_size=BATCH_SIZE,
+        n_doe_iterations=N_DOE_ITERATIONS,
     )
     results.append(result_fraction)
 
-# %%
+# For comparison, we also optimize the function without using any initial data:
+
+result_baseline = simulate_scenarios(
+    {"0": Campaign(searchspace=searchspace, objective=objective)},
+    lookup_test_task,
+    batch_size=BATCH_SIZE,
+    n_doe_iterations=N_DOE_ITERATIONS,
+    n_mc_iterations=N_MC_ITERATIONS,
+)
+results = pd.concat([result_baseline, *results])
+
+# All that remains is to visualize the results.
+# As the example shows, the optimization speed can be significantly increased by
+# using even small amounts of training data from related optimization tasks.
+
+results.rename(columns={"Scenario": "% of data used"}, inplace=True)
+ax = sns.lineplot(
+    data=results,
+    marker="o",
+    markersize=10,
+    x="Num_Experiments",
+    y="Target_CumBest",
+    hue="% of data used",
+)
+create_example_plots(ax=ax, base_name="basic_transfer_learning")
