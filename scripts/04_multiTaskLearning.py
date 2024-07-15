@@ -6,9 +6,6 @@
 @Contact :   da.persaud@mail.utoronto.ca
 @Desc    :
 """
-
-import logging
-
 # %%
 # IMPORT DEPENDENCIES------------------------------------------------------------------------------
 import os
@@ -19,7 +16,6 @@ import numpy as np
 import numpy.matlib as nm
 import pandas as pd
 import seaborn as sns
-import ternary
 from baybe import Campaign
 from baybe.constraints import DiscreteSumConstraint, ThresholdCondition
 from baybe.objectives import SingleTargetObjective
@@ -36,37 +32,18 @@ from sklearn.gaussian_process.kernels import RBF, ExpSineSquared
 # import linear regression model
 from sklearn.linear_model import LinearRegression
 
-from persaudD.persaudD_general import pltTernary
+from pltTernary import pltTernary
 
-# SET UP LOGGING-----------------------------------------------------------------------------------
-
-# get the path to the current directory
-strWD = os.getcwd()
-# get the name of this file
-strLogFileName = os.path.basename(__file__)
-# split the file name and the extension
-strLogFileName = os.path.splitext(strLogFileName)[0]
-# add .log to the file name
-strLogFileName = os.path.join(f"{strLogFileName}.log")
-# join the log file name to the current directory
-strLogFilePath = os.path.join(strWD, strLogFileName)
-
-# Initialize logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(strLogFilePath, mode="a"),
-        logging.StreamHandler(sys.stdout),
-    ],
-)
 
 # %%
 # LOAD DATA----------------------------------------------------------------------------------------
 
+# get the path to the directory before the current directory
+strHomeDir = os.path.dirname(os.getcwd())
+
 # load combinationCount
 dfCombinationCounts = pd.read_csv(
-    os.path.join(strWD, "data", "combinationCounts_3.csv"), index_col=0
+    os.path.join(strHomeDir, "data", "processed", "combinationCounts_3.csv"), index_col=0
 )
 
 # # pull the 5 rows with the highest count_exp
@@ -104,20 +81,14 @@ for idx, row in dfCombinationCounts.iterrows():
 
 
 dfMP = pd.read_csv(
-    os.path.join(strWD, "data", "mp_bulkModulus_wElementFractions.csv"), index_col=0
+    os.path.join(strHomeDir, "data", "processed", "mp_bulkModulus_wElementFractions.csv"), index_col=0
 )
-# drop the last column
-dfMP = dfMP.iloc[:, :-1]
-logging.info("Loaded bulk modulus data from csv file")
 # get a list of the elements (from the columns) in the dataframes
 lstElementCols = dfMP.columns.tolist()[5:]
 
 dfExp = pd.read_csv(
-    os.path.join(strWD, "data", "exp_hardness_wElementFractions.csv"), index_col=0
+    os.path.join(strHomeDir, "data", "processed", "exp_hardness_wElementFractions.csv"), index_col=0
 )
-# drop the last column
-dfExp = dfExp.iloc[:, :-1]
-logging.info("Loaded experimental hardness data from csv file")
 
 # downselect the dataframes to only include the best combination
 dfMP = dfMP.loc[lstId_mp]
@@ -164,6 +135,8 @@ pltTernary(
     strColorBarLabel="Voigt Bulk Modulus",
     strTitle="MP Data",
     intMarkerSize=100,
+    strSavePath=os.path.join(strHomeDir, "reports", "figures", "mpData.png"),
+
 )
 
 # -----EXP-----
@@ -174,6 +147,7 @@ pltTernary(
     strColorBarLabel="Hardness",
     strTitle="EXP Data",
     intMarkerSize=100,
+    strSavePath=os.path.join(strHomeDir, "reports", "figures", "expData.png"),
 )
 
 
@@ -246,6 +220,7 @@ pltTernary(
     strColorBarLabel="Voigt Bulk Modulus",
     strTitle="LR Voigt Bulk Modulus",
     intMarkerSize=100,
+    strSavePath=os.path.join(strHomeDir, "reports", "figures", "mpPredictions.png"),
 )
 
 # -----EXP-----
@@ -256,6 +231,7 @@ pltTernary(
     strColorBarLabel="Hardness",
     strTitle="LR Hardness",
     intMarkerSize=100,
+    strSavePath=os.path.join(strHomeDir, "reports", "figures", "expPredictions.png"),
 )
 
 
@@ -371,3 +347,5 @@ ax = sns.lineplot(
     hue="% of data used",
 )
 create_example_plots(ax=ax, base_name="basic_transfer_learning")
+
+# %%

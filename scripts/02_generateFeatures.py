@@ -19,46 +19,25 @@ from matminer.featurizers.composition.element import ElementFraction
 from matminer.featurizers.conversions import StrToComposition
 
 if __name__ == "__main__":
-
-    # SET UP LOGGING-------------------------------------------------------------------------------
-
-    # get the path to the current directory
-    strWD = os.getcwd()
-    # get the name of this file
-    strLogFileName = os.path.basename(__file__)
-    # split the file name and the extension
-    strLogFileName = os.path.splitext(strLogFileName)[0]
-    # add .log to the file name
-    strLogFileName = os.path.join(f"{strLogFileName}.log")
-    # join the log file name to the current directory
-    strLogFilePath = os.path.join(strWD, strLogFileName)
-
-    # Initialize logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(strLogFilePath, mode="a"),
-            logging.StreamHandler(sys.stdout),
-        ],
-    )
+    # get the path to the directory before the current directory
+    strHomeDir = os.path.dirname(os.getcwd())
 
     # LOAD DATA-----------------------------------------------------------------------------------
     dfMP = pd.read_csv(
-        os.path.join(strWD, "data", "mp_bulkModulus_cleaned.csv"), index_col=0
+        os.path.join(strHomeDir, "data", "processed", "mp_bulkModulus_cleaned.csv"), index_col=0
     )
-    logging.info("Loaded bulk modulus data from csv file")
 
     dfExp = pd.read_csv(
-        os.path.join(strWD, "data", "exp_hardness_cleaned.csv"), index_col=0
+        os.path.join(strHomeDir, "data", "processed", "exp_hardness_cleaned.csv"), index_col=0
     )
-    logging.info("Loaded experimental hardness data from csv file")
 
     # USE MATMINER TO GET COMPOSITIONAL DATA-------------------------------------------------------
 
     # -----GET COMPOSITIONAL DATA FOR MATERIALS PROJECT DATA-----
     # convert the strComposition to a composition object
-    dfMP = StrToComposition().featurize_dataframe(dfMP, "strComposition")
+    dfMP = StrToComposition().featurize_dataframe(
+        dfMP, "strComposition", ignore_errors=True, return_errors=True
+    )
     # get the element fractions
     dfMP = ElementFraction().featurize_dataframe(
         dfMP, col_id="composition", ignore_errors=True, return_errors=True
@@ -66,17 +45,27 @@ if __name__ == "__main__":
 
     # -----GET COMPOSITIONAL DATA FOR EXPERIMENTAL HARDNESS DATA-----
     # convert the strComposition to a composition object
-    dfExp = StrToComposition().featurize_dataframe(dfExp, "strComposition")
+    dfExp = StrToComposition().featurize_dataframe(
+        dfExp, "strComposition", ignore_errors=True, return_errors=True
+    )
     # get the element fractions
     dfExp = ElementFraction().featurize_dataframe(
         dfExp, col_id="composition", ignore_errors=True, return_errors=True
     )
 
-    # EXPORT DATA---------------------------------------------------------------------------------
-    dfMP.to_csv(os.path.join(strWD, "data", "mp_bulkModulus_wElementFractions.csv"))
-    logging.info("Exported materials project data with element fractions to csv file")
+    # drop the StrToComposition Exceptions column
+    dfMP.drop(columns=["StrToComposition Exceptions"], inplace=True)
+    dfExp.drop(columns=["StrToComposition Exceptions"], inplace=True)
 
-    dfExp.to_csv(os.path.join(strWD, "data", "exp_hardness_wElementFractions.csv"))
-    logging.info(
-        "Exported experimental hardness data with element fractions to csv file"
-    )
+    # drop the ElementFraction Exceptions column
+    dfMP.drop(columns=["ElementFraction Exceptions"], inplace=True)
+    dfExp.drop(columns=["ElementFraction Exceptions"], inplace=True)
+
+    # drop entries with missing data
+    dfMP.dropna(inplace=True)
+    dfExp.dropna(inplace=True)
+
+    # EXPORT DATA---------------------------------------------------------------------------------
+    dfMP.to_csv(os.path.join(strHomeDir, "data", "processed", "mp_bulkModulus_wElementFractions.csv"))
+
+    dfExp.to_csv(os.path.join(strHomeDir, "data", "processed", "exp_hardness_wElementFractions.csv"))

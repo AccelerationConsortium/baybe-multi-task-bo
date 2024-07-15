@@ -7,51 +7,28 @@
 @Desc    :   pair down the two datasets  to a managaable size for the BayBE multi-task learning
 """
 
-import itertools
-import logging
-
 # %%
 # IMPORT DEPENDENCIES------------------------------------------------------------------------------
 import os
 import sys
 import time
+import itertools
 
 import pandas as pd
 
-# SET UP LOGGING-------------------------------------------------------------------------------
-
-# get the path to the current directory
-strWD = os.getcwd()
-# get the name of this file
-strLogFileName = os.path.basename(__file__)
-# split the file name and the extension
-strLogFileName = os.path.splitext(strLogFileName)[0]
-# add .log to the file name
-strLogFileName = os.path.join(f"{strLogFileName}.log")
-# join the log file name to the current directory
-strLogFilePath = os.path.join(strWD, strLogFileName)
-
-# Initialize logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(strLogFilePath, mode="a"),
-        logging.StreamHandler(sys.stdout),
-    ],
-)
-
 # %%
 # LOAD DATA-----------------------------------------------------------------------------------
+
+# get the path to the directory before the current directory
+strHomeDir = os.path.dirname(os.getcwd())
+
 dfMP = pd.read_csv(
-    os.path.join(strWD, "data", "mp_bulkModulus_wElementFractions.csv"), index_col=0
+    os.path.join(strHomeDir, "data", "processed", "mp_bulkModulus_wElementFractions.csv"), index_col=0
 )
-logging.info("Loaded bulk modulus data from csv file")
 
 dfExp = pd.read_csv(
-    os.path.join(strWD, "data", "exp_hardness_wElementFractions.csv"), index_col=0
+    os.path.join(strHomeDir, "data", "processed", "exp_hardness_wElementFractions.csv"), index_col=0
 )
-logging.info("Loaded experimental hardness data from csv file")
 
 # %%
 # REMOVE ELEMENTS WITH ALL ZEROS----------------------------------------------------------------
@@ -62,9 +39,8 @@ available within one dataset). Therefore, we can remove it to reduce the number 
 the subsequent steps.
 """
 
-
 # get a list of the elements (from the columns) in the dataframes
-lstElementCols = dfMP.columns.tolist()[5:-1]
+lstElementCols = dfMP.columns.tolist()[5:]
 # get a list of information columns in the dataframes
 lstInfoCols_mp = dfMP.columns.tolist()[:5]
 lstInfoCols_exp = dfExp.columns.tolist()[:4]
@@ -109,10 +85,6 @@ only appear in one dataframe are not useful for the analysis and can be removed 
 number of checks in the subsequent steps.
 """
 
-# drop the ElementFraction Exceptions columns
-dfMP.drop(columns="ElementFraction Exceptions", inplace=True)
-dfExp.drop(columns="ElementFraction Exceptions", inplace=True)
-
 # find the common columns between the two dataframes
 lstCommonElementCols = list(set(lstNonZeroCols_mp).intersection(lstNonZeroCols_exp))
 
@@ -146,9 +118,6 @@ dfExp.drop(columns=lstNonCommonElementCols_exp, inplace=True)
 we want to count the number of entries which have at least one non-zero value for an element in the
 combination and zero values for all other elements.
 """
-
-# intSystemSize = 3
-
 
 def getCombinationCount(intSystemSize, lstCommonElementCols):
     # generate all combinations of elements from the common columns
@@ -205,10 +174,7 @@ def getCombinationCount(intSystemSize, lstCommonElementCols):
     dfCombinationCounts = pd.DataFrame.from_dict(dicCombinationCounts).T
     # save the dataframe to a csv file
     dfCombinationCounts.to_csv(
-        os.path.join(strWD, "data", f"combinationCounts_{intSystemSize}.csv")
-    )
-    logging.info(
-        f"Saved the combination counts to {os.path.join(strWD, 'data', f'combinationCounts_{intSystemSize}.csv')}"
+        os.path.join(strHomeDir, "data", "processed", f"combinationCounts_{intSystemSize}.csv")
     )
 
     intMaxCount_exp = 0
@@ -227,14 +193,14 @@ def getCombinationCount(intSystemSize, lstCommonElementCols):
 
 
 # %%
-# start the timer
-timeStart = time.time()
-print("Starting the timer for combinations of 2...")
-dfCombinationCounts_2, strBestCombination_2, intMaxCount_mp_2, intMaxCount_exp_2 = (
-    getCombinationCount(2, lstCommonElementCols)
-)
-timeEnd = time.time()
-print(f"Finished in {timeEnd - timeStart} seconds\n")
+# # start the timer
+# timeStart = time.time()
+# print("Starting the timer for combinations of 2...")
+# dfCombinationCounts_2, strBestCombination_2, intMaxCount_mp_2, intMaxCount_exp_2 = (
+#     getCombinationCount(2, lstCommonElementCols)
+# )
+# timeEnd = time.time()
+# print(f"Finished in {timeEnd - timeStart} seconds\n")
 
 # start the timer
 timeStart = time.time()
@@ -245,14 +211,14 @@ dfCombinationCounts_3, strBestCombination_3, intMaxCount_mp_3, intMaxCount_exp_3
 timeEnd = time.time()
 print(f"Finished in {timeEnd - timeStart} seconds\n")
 
-# start the timer
-timeStart = time.time()
-print("Starting the timer for combinations of 4...")
-dfCombinationCounts_4, strBestCombination_4, intMaxCount_mp_4, intMaxCount_exp_4 = (
-    getCombinationCount(4, lstCommonElementCols)
-)
-timeEnd = time.time()
-print(f"Finished in {timeEnd - timeStart} seconds\n")
+# # start the timer
+# timeStart = time.time()
+# print("Starting the timer for combinations of 4...")
+# dfCombinationCounts_4, strBestCombination_4, intMaxCount_mp_4, intMaxCount_exp_4 = (
+#     getCombinationCount(4, lstCommonElementCols)
+# )
+# timeEnd = time.time()
+# print(f"Finished in {timeEnd - timeStart} seconds\n")
 
 # # start the timer
 # timeStart = time.time()
