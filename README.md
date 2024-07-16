@@ -11,9 +11,9 @@
 
 # baybe-multi-task-bo
 
-> Add a short description here!
+> Benchmarking exploration of the Bayesian BackEnd (BayBE) with multi-task Bayesian optimization (BO) benchmark problems.
 
-A longer description of your project goes here...
+While the focus will initially be on homogenous search spaces, ultimately, implementing a heterogenous search space Bayesian optimizer will help accommodate real-world multi-task optimization needs.
 
 ## Installation
 
