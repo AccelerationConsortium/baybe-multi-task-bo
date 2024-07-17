@@ -46,6 +46,9 @@ dfCombinationCounts = pd.read_csv(
     os.path.join(strHomeDir, "data", "processed", "combinationCounts_3.csv"), index_col=0
 )
 
+# reverse sort dfCombinationCounts by index
+
+
 # # pull the 5 rows with the highest count_exp
 # dfCombinationCounts = dfCombinationCounts.sort_values(by="count_exp", ascending=False).head(5)
 

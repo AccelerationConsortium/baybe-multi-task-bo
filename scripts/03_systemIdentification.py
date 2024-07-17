@@ -119,6 +119,8 @@ we want to count the number of entries which have at least one non-zero value fo
 combination and zero values for all other elements.
 """
 
+# CHECK WHATS AVAILABLE AND THEN COUNT
+
 def getCombinationCount(intSystemSize, lstCommonElementCols):
     # generate all combinations of elements from the common columns
     lstElementCombinations = list(
