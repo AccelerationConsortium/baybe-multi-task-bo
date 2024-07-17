@@ -16,10 +16,11 @@ import os
 import sys
 from datetime import datetime
 
-import config
 import pandas as pd
 from emmet.core.summary import HasProps
 from mp_api.client import MPRester
+
+strMP_apiKey = ''
 
 # %%
 # LOAD DATA----------------------------------------------------------------------------------------
@@ -35,7 +36,7 @@ try:
 # if the file does not exist, get the data from the MP-API
 except:
     # get the data from the MP-API
-    with MPRester(config.mp_apiKey) as mpr:
+    with MPRester(strMP_apiKey) as mpr:
         # get all materials with bulk modulus data
         lstMPDocs = mpr.materials.summary.search(
             has_props=[HasProps.elasticity],

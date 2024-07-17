@@ -46,41 +46,27 @@ dfCombinationCounts = pd.read_csv(
     os.path.join(strHomeDir, "data", "processed", "combinationCounts_3.csv"), index_col=0
 )
 
-# reverse sort dfCombinationCounts by index
-
-
-# # pull the 5 rows with the highest count_exp
-# dfCombinationCounts = dfCombinationCounts.sort_values(by="count_exp", ascending=False).head(5)
-
-intCount_exp = 0
-intCount_mp = 0
-
-# for every row in the dataframe, find the number of valid rows
-for idx, row in dfCombinationCounts.iterrows():
-    intCount_mp_temp = row["count_mp"]
-    intCount_exp_temp = row["count_exp"]
-
-    if intCount_mp_temp > intCount_mp and intCount_exp_temp > intCount_exp:
-        intCount_mp = intCount_mp_temp
-        intCount_exp = intCount_exp_temp
-        strId_bestCombiniation = idx
-
-        # remove square brackets and qoutes from row["indices_mp"]
-        lstId_mp = (
-            row["indices_mp"]
+# pull out the indices from index = 'Cr, Nb, B'
+lstId_mp = (
+            dfCombinationCounts.loc['Cr,Nb,B']["indices_mp"]
             .replace("[", "")
             .replace("]", "")
             .replace("'", "")
             .split(", ")
         )
-        lstId_exp = (
-            row["indices_exp"]
+
+lstId_exp = (
+            dfCombinationCounts.loc['Cr,Nb,B']["indices_exp"]
             .replace("[", "")
             .replace("]", "")
             .replace("'", "")
             .split(", ")
         )
-        lstId_exp = [int(strId) for strId in lstId_exp]
+
+lstId_exp = [int(strId) for strId in lstId_exp]
+
+# sort dfCombinationCounts by id
+dfCombinationCounts = dfCombinationCounts.sort_index(ascending=False)
 
 
 dfMP = pd.read_csv(
@@ -313,7 +299,7 @@ N_DOE_ITERATIONS = 10
 BATCH_SIZE = 1
 
 results: list[pd.DataFrame] = []
-for p in (0.01, 0.02, 0.05, 0.08, 0.2):
+for p in (0.01, 0.05, 0.1):
     campaign = Campaign(searchspace=searchspace, objective=objective)
     initial_data = [lookup_training_task.sample(frac=p) for _ in range(N_MC_ITERATIONS)]
     result_fraction = simulate_scenarios(
@@ -349,6 +335,8 @@ ax = sns.lineplot(
     y="Target_CumBest",
     hue="% of data used",
 )
-create_example_plots(ax=ax, base_name="basic_transfer_learning")
+create_example_plots(ax=ax,
+                     base_name="multitask learning",
+                     path=os.path.join(strHomeDir, "reports", "figures"))
 
 # %%
