@@ -17,6 +17,74 @@ import matplotlib.pyplot as plt
 
 import pandas as pd
 
+# make a function to find the entries in a dataframe which contain the specified elements
+def findEntries(lstElements_interest,
+                lstElements_total,
+                df):
+    """
+    Find the entries in the dataframe that contain the specified elements
+
+    parameters
+    ----------
+    lstElements_
+
+    df : pandas.DataFrame
+        Dataframe to search for entries.
+
+    returns
+    -------
+    dfEntries : pandas.DataFrame
+        Dataframe containing the entries that contain the specified elements.
+    """
+
+    lstEntries = []
+    for idx_temp, row_temp in df.iterrows():
+        # Check if all specified elements have non-zero values
+        all_specified_elements_present = any(row_temp[element] != 0 for element in lstElements_interest)
+        
+        # Check if all other elements have zero values
+        all_other_elements_zero = all(row_temp[element] == 0 for element in lstElements_total if element not in lstElements_interest)
+        
+        if all_specified_elements_present and all_other_elements_zero:
+            lstEntries.append(idx_temp)
+
+    df_wElements = df.loc[lstEntries]
+
+    return df_wElements
+
+def countEntries(lstElements_interest,
+                 lstElements_total,
+                 df):
+    '''
+    Count the number of entries in the dataframe that contain the elements in the list
+
+    parameters
+    ----------
+    lstElements_interest: list
+        list of 
+
+    df : pandas.DataFrame
+        Dataframe to search for entries.
+
+    returns
+    -------
+    intCount : int
+        Number of entries that contain the elements in the list.
+    '''
+
+    intCount = 0
+    for idx_temp, row_temp in df.iterrows():
+        # Check if all specified elements have non-zero values
+        all_specified_elements_present = any(row_temp[element] != 0 for element in lstElements_interest)
+        
+        # Check if all other elements have zero values
+        all_other_elements_zero = all(row_temp[element] == 0 for element in lstElements_total if element not in lstElements_interest)
+        
+        if all_specified_elements_present and all_other_elements_zero:
+            intCount += 1
+
+    return intCount
+
 # %%
 # LOAD DATA-----------------------------------------------------------------------------------
 
@@ -117,7 +185,6 @@ dfMP[lstCommonElementCols] = dfMP[lstCommonElementCols].apply(pd.to_numeric)
 dfExp[lstCommonElementCols] = dfExp[lstCommonElementCols].apply(pd.to_numeric)
 
 
-
 #%%
 # MAKE HISTOGRAM OF THE NUMBER OF NON-ZERO VALUES IN THE ELEMENT COLUMNS---------------------------
 
@@ -146,39 +213,6 @@ plt.xticks(fontsize=10);
 # Extract elements from chemical formulas and count occurrences
 setInitialSelection = set(list(dicNonZeroCounts.keys())[:10])
 
-def countEntries(lstElements_interest,
-                 lstElements_total,
-                 df):
-    '''
-    Count the number of entries in the dataframe that contain the elements in the list
-
-    parameters
-    ----------
-    lstElements_interest: list
-        list of 
-
-    df : pandas.DataFrame
-        Dataframe to search for entries.
-
-    returns
-    -------
-    intCount : int
-        Number of entries that contain the elements in the list.
-    '''
-
-    intCount = 0
-    for idx_temp, row_temp in df.iterrows():
-        # Check if all specified elements have non-zero values
-        all_specified_elements_present = any(row_temp[element] != 0 for element in lstElements_interest)
-        
-        # Check if all other elements have zero values
-        all_other_elements_zero = all(row_temp[element] == 0 for element in lstElements_total if element not in lstElements_interest)
-        
-        if all_specified_elements_present and all_other_elements_zero:
-            intCount += 1
-
-    return intCount
-
 # -----GREEDY SELECTION-----
 
 setBestElements = setInitialSelection
@@ -205,40 +239,6 @@ while boolImprovement:
 print(f"Best elements: {setBestElements}"
       f"\nNumber of entries: {intBestCount}")
 
-# make a function to find the entries in a dataframe which contain the specified elements
-def findEntries(lstElements_interest,
-                lstElements_total,
-                df):
-    """
-    Find the entries in the dataframe that contain the specified elements
-
-    parameters
-    ----------
-    lstElements_
-
-    df : pandas.DataFrame
-        Dataframe to search for entries.
-
-    returns
-    -------
-    dfEntries : pandas.DataFrame
-        Dataframe containing the entries that contain the specified elements.
-    """
-
-    lstEntries = []
-    for idx_temp, row_temp in df.iterrows():
-        # Check if all specified elements have non-zero values
-        all_specified_elements_present = any(row_temp[element] != 0 for element in lstElements_interest)
-        
-        # Check if all other elements have zero values
-        all_other_elements_zero = all(row_temp[element] == 0 for element in lstElements_total if element not in lstElements_interest)
-        
-        if all_specified_elements_present and all_other_elements_zero:
-            lstEntries.append(idx_temp)
-
-    df_wElements = df.loc[lstEntries]
-
-    return df_wElements
 
 # find the entries in dfMP and dfExp that contain the best elements
 dfEntries_mp = findEntries(list(setBestElements),
@@ -252,7 +252,15 @@ dfEntries_exp = findEntries(list(setBestElements),
 dfEntries_mp = dfEntries_mp.loc[:, (dfEntries_mp != 0).any(axis=0)]
 dfEntries_exp = dfEntries_exp.loc[:, (dfEntries_exp != 0).any(axis=0)]
 
+# save the entries to csv files
+dfEntries_mp.to_csv(os.path.join(strHomeDir, "data", "processed", "mp_bulkModulus_goodOverlap.csv"))
+dfEntries_exp.to_csv(os.path.join(strHomeDir, "data", "processed", "exp_hardness_goodOverlap.csv"))
 
+
+'''
+The following code is legacy and is not used in the current implementation, will be removed
+in the future.
+'''
 # # %%
 # # FUNCTION TO FIND THE THE BEST COMBINATION--------------------------------------------------------
 # """
@@ -378,5 +386,3 @@ dfEntries_exp = dfEntries_exp.loc[:, (dfEntries_exp != 0).any(axis=0)]
 # dfCombinationCounts_6, strBestCombination_6, intMaxCount_mp_6, intMaxCount_exp_6 = getCombinationCount(6, lstCommonElementCols)
 # timeEnd = time.time()
 # print(f"Finished in {timeEnd - timeStart} seconds\n")
-
-# %%
