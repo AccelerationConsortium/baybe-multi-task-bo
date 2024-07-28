@@ -37,7 +37,7 @@ from sklearn.linear_model import LinearRegression
 from pltTernary import pltTernary
 
 
-# %%
+#%%
 # LOAD DATA----------------------------------------------------------------------------------------
 
 # get the path to the directory before the current directory
@@ -47,35 +47,128 @@ dfMP = pd.read_csv(
     os.path.join(strHomeDir, "data", "processed", "mp_bulkModulus_goodOverlap.csv"), index_col=0
 )
 
+# add a column to dfMP called 'load' and set all values to 1
+dfMP["load"] = 1
+
 dfExp = pd.read_csv(
     os.path.join(strHomeDir, "data", "processed", "exp_hardness_goodOverlap.csv"), index_col=0
 )
-# get a list of the elements (from the columns) in the dataframes
-lstElementCols = dfExp.columns.tolist()[4:]
-# make a list of the parameters columns which are the elements + load
-lstParameterCols = lstElementCols + ["load"]
+
+lstElementCols = dfExp.columns.to_list()[4:]
+
+#%%
+# CLEAN DATA---------------------------------------------------------------------------------------
+
+# make a dataframe for the task function (hardness) - dfExp [element columns, load]
+dfSearchSpace_task = dfExp[lstElementCols + ["load"]]
+# add a column to dfSearchSpace_task called 'Function' and set all values to 'taskFunction'
+dfSearchSpace_task["Function"] = "taskFunction"
+
+# make a lookup table for the task function (hardness) - add the 'hardness' column from dfExp to dfSearchSpace_task
+dfLookupTable_task = pd.concat([dfSearchSpace_task, dfExp["hardness"]], axis=1)
+# make the 'hardness' column the 'Target' column
+dfLookupTable_task = dfLookupTable_task.rename(columns={"hardness": "Target"})
+
+# make a dataframe for the source function (voigt bulk modulus) - dfMP [element columns, load]
+dfSearchSpace_source = dfMP[lstElementCols + ["load"]]
+# add a column to dfSearchSpace_source called 'Function' and set all values to 'sourceFunction'
+dfSearchSpace_source["Function"] = "sourceFunction"
+
+# make a lookup table for the source function (voigt bulk modulus) - add the 'vrh' column from dfMP to dfSearchSpace_source
+dfLookupTable_source = pd.concat([dfSearchSpace_source, dfMP["vrh"]], axis=1)
+# make the 'vrh' column the 'Target' column
+dfLookupTable_source = dfLookupTable_source.rename(columns={"vrh": "Target"})
+
+# concatenate the two dataframes
+dfSearchSpace = pd.concat([dfSearchSpace_task, dfSearchSpace_source])
 
 #%%
 # GENERATE THE SEARCH SPACE------------------------------------------------------------------------
-subspace  = SubspaceDiscrete.from_dataframe(dfExp[lstParameterCols])
 
-parameters = SubspaceDiscrete.from_dataframe(dfExp[lstParameterCols]).to_dict()['parameters']
-parameters = [NumericalDiscreteParameter.from_dict(p) for p in parameters]
+lstParameters = []
 
-# add the task parameter
+# for each column in dfSearchSpace except the last one, create a NumericalDiscreteParameter
+for strCol_temp in dfSearchSpace.columns[:-1]:
+    # create a NumericalDiscreteParameter
+    parameter = NumericalDiscreteParameter(
+        name=strCol_temp,
+        values=np.unique(dfSearchSpace[strCol_temp]),
+        tolerance=0.0,
+    )
+    # append the parameter to the list of parameters
+    lstParameters.append(parameter)
+
+# create a TaskParameter
 taskParameter = TaskParameter(
     name="Function",
     values=["taskFunction", "sourceFunction"],
     active_values=["taskFunction"],
 )
 
-lstParameters = [*parameters, taskParameter]
+# append the taskParameter to the list of parameters
+lstParameters.append(taskParameter)
 
-searchspace = SearchSpace.from_product(
-    parameters=lstParameters
+# create the search space
+searchspace = SearchSpace.from_dataframe(dfSearchSpace, parameters=lstParameters)
+
+#%%
+# CREATE OPTIMIZATION OBJECTIVE--------------------------------------------------------------------
+"""
+the test functions have a single output (voigt bulk modulus and hardness) that is to be maximized
+"""
+
+objective = SingleTargetObjective(target=NumericalTarget(name="Target", mode="MAX"))
+
+#%%
+# SIMULATE SCENARIOS-------------------------------------------------------------------------------
+'''
+use the simulate_scenarios function to simulate the optimization process
+'''
+
+N_MC_ITERATIONS = 10
+N_DOE_ITERATIONS = 10
+BATCH_SIZE = 1
+
+results: list[pd.DataFrame] = []
+for n in (5, 15, 30):
+    campaign = Campaign(searchspace=searchspace, objective=objective)
+    initial_data = [dfLookupTable_source.sample(n) for _ in range(N_MC_ITERATIONS)] # frac = p
+    result_fraction = simulate_scenarios(
+        {f"{n}": campaign},                                                # int(100*p)
+        dfLookupTable_task,
+        initial_data=initial_data,
+        batch_size=BATCH_SIZE,
+        n_doe_iterations=N_DOE_ITERATIONS,
+    )
+    results.append(result_fraction)
+
+# For comparison, we also optimize the function without using any initial data:
+
+result_baseline = simulate_scenarios(
+    {"0": Campaign(searchspace=searchspace, objective=objective)},
+    dfLookupTable_task,
+    batch_size=BATCH_SIZE,
+    n_doe_iterations=N_DOE_ITERATIONS,
+    n_mc_iterations=N_MC_ITERATIONS,
 )
+results = pd.concat([result_baseline, *results])
 
+# All that remains is to visualize the results.
+# As the example shows, the optimization speed can be significantly increased by
+# using even small amounts of training data from related optimization tasks.
 
+results.rename(columns={"Scenario": "Number of data used"}, inplace=True)
+ax = sns.lineplot(
+    data=results,
+    marker="o",
+    markersize=10,
+    x="Num_Experiments",
+    y="Target_CumBest",
+    hue="Number of data used",
+)
+create_example_plots(ax=ax,
+                     base_name="multiTask-v2",
+                     path=os.path.join(strHomeDir, "reports", "figures"))
 
 
 # # downselect the dataframes to only include the best combination
@@ -246,96 +339,99 @@ searchspace = SearchSpace.from_product(
 # lookup_test_task["Target"] = lookup_test_task["Target"].astype(float)
 
 
-# %%
-# CREATE OPTIMIZATION OBJECTIVE--------------------------------------------------------------------
-"""
-the test functions have a single output (voigt bulk modulus and hardness) that is to be maximized
-"""
+# # %%
+# # CREATE OPTIMIZATION OBJECTIVE--------------------------------------------------------------------
+# """
+# the test functions have a single output (voigt bulk modulus and hardness) that is to be maximized
+# """
 
-objective = SingleTargetObjective(target=NumericalTarget(name="Target", mode="MAX"))
+# objective = SingleTargetObjective(target=NumericalTarget(name="Target", mode="MAX"))
 
-# %%
-# CREATE SEARCH SPACE-------------------------------------------------------------------------------
-"""
-the bounds of the search space are dictated by the upper and lower bounds of each of the elements
-"""
+# # %%
+# # CREATE SEARCH SPACE-------------------------------------------------------------------------------
+# """
+# the bounds of the search space are dictated by the upper and lower bounds of each of the elements
+# """
 
-lstContinuousParameters = [
-    NumericalDiscreteParameter(
-        name=f"{strElement}",
-        values=np.arange(0, 1.02, 0.02).round(2),
-    )
-    for strElement in ['a', 'b', 'c']#lstNonZeroCols_exp
-]
+# lstContinuousParameters = [
+#     NumericalDiscreteParameter(
+#         name=f"{strElement}",
+#         values=np.arange(0, 1.02, 0.02).round(2),
+#     )
+#     for strElement in ['a', 'b', 'c']#lstNonZeroCols_exp
+# ]
 
-SumConstraint = [
-    DiscreteSumConstraint(
-        parameters=['a', 'b', 'c'],#lstNonZeroCols_exp,
-        condition=ThresholdCondition(  # set condition that should apply to the sum
-            threshold=1.0,
-            operator="=",
-            tolerance=0.001,  # optional; here, everything between 0.999 and 1.001 would also be considered valid
-        ),
-    )
-]
+# SumConstraint = [
+#     DiscreteSumConstraint(
+#         parameters=['a', 'b', 'c'],#lstNonZeroCols_exp,
+#         condition=ThresholdCondition(  # set condition that should apply to the sum
+#             threshold=1.0,
+#             operator="=",
+#             tolerance=0.001,  # optional; here, everything between 0.999 and 1.001 would also be considered valid
+#         ),
+#     )
+# ]
 
-taskParameters = TaskParameter(
-    name="Function",
-    values=["Test_Function", "Training_Function"],
-    active_values=["Test_Function"],
-)
+# taskParameters = TaskParameter(
+#     name="Function",
+#     values=["Test_Function", "Training_Function"],
+#     active_values=["Test_Function"],
+# )
 
-lstParameters = [*lstContinuousParameters, taskParameters]
+# lstParameters = [*lstContinuousParameters, taskParameters]
 
-searchspace = SearchSpace.from_product(
-    parameters=lstParameters, constraints=SumConstraint
-)
+# searchspace = SearchSpace.from_product(
+#     parameters=lstParameters, constraints=SumConstraint
+# )
 
-# %%
+# # %%
 
-N_MC_ITERATIONS = 10
-N_DOE_ITERATIONS = 10
-BATCH_SIZE = 1
+# N_MC_ITERATIONS = 10
+# N_DOE_ITERATIONS = 10
+# BATCH_SIZE = 1
 
-results: list[pd.DataFrame] = []
-for p in (0.01, 0.05, 0.1):
-    campaign = Campaign(searchspace=searchspace, objective=objective)
-    initial_data = [lookup_training_task.sample(frac=p) for _ in range(N_MC_ITERATIONS)]
-    result_fraction = simulate_scenarios(
-        {f"{int(100*p)}": campaign},
-        lookup_test_task,
-        initial_data=initial_data,
-        batch_size=BATCH_SIZE,
-        n_doe_iterations=N_DOE_ITERATIONS,
-    )
-    results.append(result_fraction)
+# results: list[pd.DataFrame] = []
+# for p in (0.01, 0.05, 0.1):
+#     campaign = Campaign(searchspace=searchspace, objective=objective)
+#     initial_data = [lookup_training_task.sample(frac=p) for _ in range(N_MC_ITERATIONS)]
+#     result_fraction = simulate_scenarios(
+#         {f"{int(100*p)}": campaign},
+#         lookup_test_task,
+#         initial_data=initial_data,
+#         batch_size=BATCH_SIZE,
+#         n_doe_iterations=N_DOE_ITERATIONS,
+#     )
+#     results.append(result_fraction)
 
-# For comparison, we also optimize the function without using any initial data:
+# # For comparison, we also optimize the function without using any initial data:
 
-result_baseline = simulate_scenarios(
-    {"0": Campaign(searchspace=searchspace, objective=objective)},
-    lookup_test_task,
-    batch_size=BATCH_SIZE,
-    n_doe_iterations=N_DOE_ITERATIONS,
-    n_mc_iterations=N_MC_ITERATIONS,
-)
-results = pd.concat([result_baseline, *results])
+# result_baseline = simulate_scenarios(
+#     {"0": Campaign(searchspace=searchspace, objective=objective)},
+#     lookup_test_task,
+#     batch_size=BATCH_SIZE,
+#     n_doe_iterations=N_DOE_ITERATIONS,
+#     n_mc_iterations=N_MC_ITERATIONS,
+# )
+# results = pd.concat([result_baseline, *results])
 
-# All that remains is to visualize the results.
-# As the example shows, the optimization speed can be significantly increased by
-# using even small amounts of training data from related optimization tasks.
+# # All that remains is to visualize the results.
+# # As the example shows, the optimization speed can be significantly increased by
+# # using even small amounts of training data from related optimization tasks.
 
-results.rename(columns={"Scenario": "% of data used"}, inplace=True)
-ax = sns.lineplot(
-    data=results,
-    marker="o",
-    markersize=10,
-    x="Num_Experiments",
-    y="Target_CumBest",
-    hue="% of data used",
-)
-create_example_plots(ax=ax,
-                     base_name="multitask learning",
-                     path=os.path.join(strHomeDir, "reports", "figures"))
+# results.rename(columns={"Scenario": "% of data used"}, inplace=True)
+# ax = sns.lineplot(
+#     data=results,
+#     marker="o",
+#     markersize=10,
+#     x="Num_Experiments",
+#     y="Target_CumBest",
+#     hue="% of data used",
+# )
+# create_example_plots(ax=ax,
+#                      base_name="multitask learning",
+#                      path=os.path.join(strHomeDir, "reports", "figures"))
 
+# # %%
+
+dfLookupTable_task
 # %%

@@ -386,3 +386,5 @@ in the future.
 # dfCombinationCounts_6, strBestCombination_6, intMaxCount_mp_6, intMaxCount_exp_6 = getCombinationCount(6, lstCommonElementCols)
 # timeEnd = time.time()
 # print(f"Finished in {timeEnd - timeStart} seconds\n")
+
+# %%
