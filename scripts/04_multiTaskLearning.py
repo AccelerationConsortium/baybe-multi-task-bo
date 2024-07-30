@@ -170,6 +170,7 @@ create_example_plots(ax=ax,
                      base_name="multiTask-v2",
                      path=os.path.join(strHomeDir, "reports", "figures"))
 
+# add random and max
 
 # # downselect the dataframes to only include the best combination
 # dfMP = dfMP.loc[lstId_mp]
