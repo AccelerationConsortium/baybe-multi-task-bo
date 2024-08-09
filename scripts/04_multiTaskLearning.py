@@ -47,20 +47,23 @@ dfMP = pd.read_csv(
     os.path.join(strHomeDir, "data", "processed", "mp_bulkModulus_goodOverlap.csv"), index_col=0
 )
 
-# add a column to dfMP called 'load' and set all values to 1
-dfMP["load"] = 1
+# # add a column to dfMP called 'load' and set all values to 1
+# dfMP["load"] = 1
 
 dfExp = pd.read_csv(
     os.path.join(strHomeDir, "data", "processed", "exp_hardness_goodOverlap.csv"), index_col=0
 )
+
+# make anotehr column for hardness / load
+dfExp['hardness/load'] = dfExp['hardness'] / dfExp['load']
 
 lstElementCols = dfExp.columns.to_list()[4:]
 
 #%%
 # MAKE A HISTOGRAM OF THE hardness COLUMN----------------------------------------------------------
 
-plt.hist(dfExp["hardness"], bins=20)
-plt.xlabel("Hardness")
+plt.hist(dfExp["hardness/load"], bins=20)
+plt.xlabel("Hardness/Load")
 plt.ylabel("Frequency")
 plt.title("Hardness Histogram")
 
@@ -68,17 +71,17 @@ plt.title("Hardness Histogram")
 # CLEAN DATA---------------------------------------------------------------------------------------
 
 # make a dataframe for the task function (hardness) - dfExp [element columns, load]
-dfSearchSpace_task = dfExp[lstElementCols + ["load"]]
+dfSearchSpace_task = dfExp[lstElementCols]# + ["load"]]
 # add a column to dfSearchSpace_task called 'Function' and set all values to 'taskFunction'
 dfSearchSpace_task["Function"] = "taskFunction"
 
 # make a lookup table for the task function (hardness) - add the 'hardness' column from dfExp to dfSearchSpace_task
-dfLookupTable_task = pd.concat([dfSearchSpace_task, dfExp["hardness"]], axis=1)
+dfLookupTable_task = pd.concat([dfSearchSpace_task, dfExp["hardness/load"]], axis=1)
 # make the 'hardness' column the 'Target' column
-dfLookupTable_task = dfLookupTable_task.rename(columns={"hardness": "Target"})
+dfLookupTable_task = dfLookupTable_task.rename(columns={"hardness/load": "Target"})
 
 # make a dataframe for the source function (voigt bulk modulus) - dfMP [element columns, load]
-dfSearchSpace_source = dfMP[lstElementCols + ["load"]]
+dfSearchSpace_source = dfMP[lstElementCols]# + ["load"]]
 # add a column to dfSearchSpace_source called 'Function' and set all values to 'sourceFunction'
 dfSearchSpace_source["Function"] = "sourceFunction"
 
@@ -129,9 +132,18 @@ objective = SingleTargetObjective(target=NumericalTarget(name="Target", mode="MA
 
 #%%
 # SIMULATE SCENARIOS-------------------------------------------------------------------------------
-'''
+'''cenarios
+# def simulateScenario_manual():
+#     # add intial data
 use the simulate_scenarios function to simulate the optimization process
 '''
+
+# # manually simulate the s
+
+#     # in a loop
+#         # recomend
+#         # add measurement
+#     pass
 
 N_MC_ITERATIONS = 10
 N_DOE_ITERATIONS = 10
@@ -177,6 +189,18 @@ ax = sns.lineplot(
 create_example_plots(ax=ax,
                      base_name="multiTask-v2",
                      path=os.path.join(strHomeDir, "reports", "figures"))
+
+#%%
+'''
+TODO LIST
+---------------
+
+1. pull out the simulate_scenarios function and make it manually
+2. change the predictions to hardness / load
+    - to be discussed in the meeting
+3. add random sampling
+4. plot results
+'''
 
 # add random and max
 
