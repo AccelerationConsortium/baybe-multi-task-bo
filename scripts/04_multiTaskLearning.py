@@ -57,6 +57,14 @@ dfExp = pd.read_csv(
 lstElementCols = dfExp.columns.to_list()[4:]
 
 #%%
+# MAKE A HISTOGRAM OF THE hardness COLUMN----------------------------------------------------------
+
+plt.hist(dfExp["hardness"], bins=20)
+plt.xlabel("Hardness")
+plt.ylabel("Frequency")
+plt.title("Hardness Histogram")
+
+#%%
 # CLEAN DATA---------------------------------------------------------------------------------------
 
 # make a dataframe for the task function (hardness) - dfExp [element columns, load]
@@ -433,6 +441,4 @@ create_example_plots(ax=ax,
 #                      path=os.path.join(strHomeDir, "reports", "figures"))
 
 # # %%
-
-dfLookupTable_task
 # %%

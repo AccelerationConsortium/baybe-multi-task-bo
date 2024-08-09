@@ -54,3 +54,6 @@ venv*/
 venv/**/*
 .conda*/
 .python-version
+
+# daniels folders
+projectDocuments_ignore
