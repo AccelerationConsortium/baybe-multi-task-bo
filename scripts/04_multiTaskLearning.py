@@ -54,10 +54,10 @@ dfExp = pd.read_csv(
     os.path.join(strHomeDir, "data", "processed", "exp_hardness_goodOverlap.csv"), index_col=0
 )
 
+lstElementCols = dfExp.columns.to_list()[4:]
+
 # make anotehr column for hardness / load
 dfExp['hardness/load'] = dfExp['hardness'] / dfExp['load']
-
-lstElementCols = dfExp.columns.to_list()[4:]
 
 #%%
 # MAKE A HISTOGRAM OF THE hardness COLUMN----------------------------------------------------------
@@ -187,7 +187,7 @@ ax = sns.lineplot(
     hue="Number of data used",
 )
 create_example_plots(ax=ax,
-                     base_name="multiTask-v2",
+                     base_name="multiTask-v3",
                      path=os.path.join(strHomeDir, "reports", "figures"))
 
 #%%
