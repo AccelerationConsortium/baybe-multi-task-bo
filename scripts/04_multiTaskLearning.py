@@ -181,7 +181,7 @@ results_random = simulate_scenarios(
     n_mc_iterations=N_MC_ITERATIONS,
 )
 
-results = pd.concat([result_baseline, *results])
+results = pd.concat([results_random, result_baseline, *results])
 
 # build a function for randomly sampling and 
 # All that remains is to visualize the results.
@@ -189,6 +189,9 @@ results = pd.concat([result_baseline, *results])
 # using even small amounts of training data from related optimization tasks.
 
 results.rename(columns={"Scenario": "Number of data used"}, inplace=True)
+# save the results to a dataframe
+results.to_csv(os.path.join(strHomeDir, 'reports', 'results.csv'))
+
 ax = sns.lineplot(
     data=results,
     marker="o",
