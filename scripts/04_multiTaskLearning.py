@@ -30,6 +30,7 @@ from baybe.utils.plotting import create_example_plots
 from botorch.test_functions.synthetic import Hartmann
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ExpSineSquared
+from baybe.recommenders import RandomRecommender
 
 # import linear regression model
 from sklearn.linear_model import LinearRegression
@@ -94,7 +95,7 @@ dfLookupTable_source = dfLookupTable_source.rename(columns={"vrh": "Target"})
 dfSearchSpace = pd.concat([dfSearchSpace_task, dfSearchSpace_source])
 
 #%%
-# GENERATE THE SEARCH SPACE------------------------------------------------------------------------
+#i GENERATE THE SEARCH SPACE------------------------------------------------------------------------
 
 lstParameters = []
 
@@ -171,8 +172,18 @@ result_baseline = simulate_scenarios(
     n_doe_iterations=N_DOE_ITERATIONS,
     n_mc_iterations=N_MC_ITERATIONS,
 )
+
+results_random = simulate_scenarios(
+    {"random": Campaign(searchspace=searchspace, objective=objective, recommender=RandomRecommender())},
+    dfLookupTable_task,
+    batch_size=BATCH_SIZE,
+    n_doe_iterations=N_DOE_ITERATIONS,
+    n_mc_iterations=N_MC_ITERATIONS,
+)
+
 results = pd.concat([result_baseline, *results])
 
+# build a function for randomly sampling and 
 # All that remains is to visualize the results.
 # As the example shows, the optimization speed can be significantly increased by
 # using even small amounts of training data from related optimization tasks.
