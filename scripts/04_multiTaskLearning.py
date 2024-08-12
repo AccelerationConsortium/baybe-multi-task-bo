@@ -48,8 +48,8 @@ dfMP = pd.read_csv(
     os.path.join(strHomeDir, "data", "processed", "mp_bulkModulus_goodOverlap.csv"), index_col=0
 )
 
-# # add a column to dfMP called 'load' and set all values to 1
-# dfMP["load"] = 1
+# add a column to dfMP called 'load' and set all values to 1
+dfMP["load"] = 1
 
 dfExp = pd.read_csv(
     os.path.join(strHomeDir, "data", "processed", "exp_hardness_goodOverlap.csv"), index_col=0
@@ -57,32 +57,32 @@ dfExp = pd.read_csv(
 
 lstElementCols = dfExp.columns.to_list()[4:]
 
-# make anotehr column for hardness / load
-dfExp['hardness/load'] = dfExp['hardness'] / dfExp['load']
+# # make anotehr column for hardness / load
+# dfExp['hardness/load'] = dfExp['hardness'] / dfExp['load']
 
 #%%
 # MAKE A HISTOGRAM OF THE hardness COLUMN----------------------------------------------------------
 
-plt.hist(dfExp["hardness/load"], bins=20)
-plt.xlabel("Hardness/Load")
+plt.hist(dfExp["hardness"], bins=20)
+plt.xlabel("Hardness")
 plt.ylabel("Frequency")
-plt.title("Hardness/Load Histogram")
+plt.title("Hardness Histogram")
 
 #%%
 # CLEAN DATA---------------------------------------------------------------------------------------
 
 # make a dataframe for the task function (hardness) - dfExp [element columns, load]
-dfSearchSpace_task = dfExp[lstElementCols]# + ["load"]]
+dfSearchSpace_task = dfExp[lstElementCols + ["load"]]
 # add a column to dfSearchSpace_task called 'Function' and set all values to 'taskFunction'
 dfSearchSpace_task["Function"] = "taskFunction"
 
 # make a lookup table for the task function (hardness) - add the 'hardness' column from dfExp to dfSearchSpace_task
-dfLookupTable_task = pd.concat([dfSearchSpace_task, dfExp["hardness/load"]], axis=1)
+dfLookupTable_task = pd.concat([dfSearchSpace_task, dfExp["hardness"]], axis=1)#/load"]], axis=1)
 # make the 'hardness' column the 'Target' column
-dfLookupTable_task = dfLookupTable_task.rename(columns={"hardness/load": "Target"})
+dfLookupTable_task = dfLookupTable_task.rename(columns={"hardness":"Target"})#/load": "Target"})
 
 # make a dataframe for the source function (voigt bulk modulus) - dfMP [element columns, load]
-dfSearchSpace_source = dfMP[lstElementCols]# + ["load"]]
+dfSearchSpace_source = dfMP[lstElementCols + ["load"]]
 # add a column to dfSearchSpace_source called 'Function' and set all values to 'sourceFunction'
 dfSearchSpace_source["Function"] = "sourceFunction"
 
@@ -95,7 +95,7 @@ dfLookupTable_source = dfLookupTable_source.rename(columns={"vrh": "Target"})
 dfSearchSpace = pd.concat([dfSearchSpace_task, dfSearchSpace_source])
 
 #%%
-#i GENERATE THE SEARCH SPACE------------------------------------------------------------------------
+# GENERATE THE SEARCH SPACE------------------------------------------------------------------------
 
 lstParameters = []
 
@@ -131,66 +131,66 @@ the test functions have a single output (voigt bulk modulus and hardness) that i
 
 objective = SingleTargetObjective(target=NumericalTarget(name="Target", mode="MAX"))
 
-# #%%
-# # SIMULATE SCENARIOS-------------------------------------------------------------------------------
-# '''cenarios
-# # def simulateScenario_manual():
-# #     # add intial data
-# use the simulate_scenarios function to simulate the optimization process
-# '''
+#%%
+# SIMULATE SCENARIOS-------------------------------------------------------------------------------
+'''cenarios
+# def simulateScenario_manual():
+#     # add intial data
+use the simulate_scenarios function to simulate the optimization process
+'''
 
-# # # manually simulate the s
+# # manually simulate the s
 
-# #     # in a loop
-# #         # recomend
-# #         # add measurement
-# #     pass
+#     # in a loop
+#         # recomend
+#         # add measurement
+#     pass
 
-# N_MC_ITERATIONS = 10
-# N_DOE_ITERATIONS = 10
-# BATCH_SIZE = 1
+N_MC_ITERATIONS = 10
+N_DOE_ITERATIONS = 30
+BATCH_SIZE = 1
 
-# results: list[pd.DataFrame] = []
-# for n in (5, 15, 30):
-#     campaign = Campaign(searchspace=searchspace, objective=objective)
-#     initial_data = [dfLookupTable_source.sample(n) for _ in range(N_MC_ITERATIONS)] # frac = p
-#     result_fraction = simulate_scenarios(
-#         {f"{n}": campaign},                                                # int(100*p)
-#         dfLookupTable_task,
-#         initial_data=initial_data,
-#         batch_size=BATCH_SIZE,
-#         n_doe_iterations=N_DOE_ITERATIONS,
-#     )
-#     results.append(result_fraction)
+results: list[pd.DataFrame] = []
+for n in (5, 15, 30):
+    campaign = Campaign(searchspace=searchspace, objective=objective)
+    initial_data = [dfLookupTable_source.sample(n) for _ in range(N_MC_ITERATIONS)] # frac = p
+    result_fraction = simulate_scenarios(
+        {f"{n}": campaign},                                                # int(100*p)
+        dfLookupTable_task,
+        initial_data=initial_data,
+        batch_size=BATCH_SIZE,
+        n_doe_iterations=N_DOE_ITERATIONS,
+    )
+    results.append(result_fraction)
 
-# # For comparison, we also optimize the function without using any initial data:
+# For comparison, we also optimize the function without using any initial data:
 
-# result_baseline = simulate_scenarios(
-#     {"0": Campaign(searchspace=searchspace, objective=objective)},
-#     dfLookupTable_task,
-#     batch_size=BATCH_SIZE,
-#     n_doe_iterations=N_DOE_ITERATIONS,
-#     n_mc_iterations=N_MC_ITERATIONS,
-# )
+result_baseline = simulate_scenarios(
+    {"0": Campaign(searchspace=searchspace, objective=objective)},
+    dfLookupTable_task,
+    batch_size=BATCH_SIZE,
+    n_doe_iterations=N_DOE_ITERATIONS,
+    n_mc_iterations=N_MC_ITERATIONS,
+)
 
-# results_random = simulate_scenarios(
-#     {"random": Campaign(searchspace=searchspace, objective=objective, recommender=RandomRecommender())},
-#     dfLookupTable_task,
-#     batch_size=BATCH_SIZE,
-#     n_doe_iterations=N_DOE_ITERATIONS,
-#     n_mc_iterations=N_MC_ITERATIONS,
-# )
+results_random = simulate_scenarios(
+    {"random": Campaign(searchspace=searchspace, objective=objective, recommender=RandomRecommender())},
+    dfLookupTable_task,
+    batch_size=BATCH_SIZE,
+    n_doe_iterations=N_DOE_ITERATIONS,
+    n_mc_iterations=N_MC_ITERATIONS,
+)
 
-# results = pd.concat([results_random, result_baseline, *results])
+results = pd.concat([results_random, result_baseline, *results])
 
-# # build a function for randomly sampling and 
-# # All that remains is to visualize the results.
-# # As the example shows, the optimization speed can be significantly increased by
-# # using even small amounts of training data from related optimization tasks.
+# build a function for randomly sampling and 
+# All that remains is to visualize the results.
+# As the example shows, the optimization speed can be significantly increased by
+# using even small amounts of training data from related optimization tasks.
 
-# results.rename(columns={"Scenario": "Number of data used"}, inplace=True)
-# # save the results to a dataframe
-# results.to_csv(os.path.join(strHomeDir, 'reports', 'results.csv'))
+results.rename(columns={"Scenario": "Number of data used"}, inplace=True)
+# save the results to a dataframe
+results.to_csv(os.path.join(strHomeDir, 'reports', 'results_hardnessOnly.csv'))
 
 # ax = sns.lineplot(
 #     data=results,
@@ -208,7 +208,7 @@ objective = SingleTargetObjective(target=NumericalTarget(name="Target", mode="MA
 # PLOT RESUTLS-------------------------------------------------------------------------------------
 
 # import results
-results = pd.read_csv(os.path.join(strHomeDir, 'reports', 'results.csv'),  index_col=0)
+results = pd.read_csv(os.path.join(strHomeDir, 'reports', 'results_hardnessOnly.csv'),  index_col=0)
 
 # intialize a subplot with 1 row and 1 column
 fig, ax = plt.subplots(1, 1, figsize=(14, 7))
@@ -236,10 +236,10 @@ plt.title("Multi-Task Learning Optimization")
 plt.xlabel("Number of Experiments")
 
 # add a y-axis label
-plt.ylabel("Target Cumulative Best")
+plt.ylabel("Target Cumulative Best - Hardness")
 
 # save the figure
-plt.savefig(os.path.join(strHomeDir, 'reports', 'figures', 'multiTaskLearning_v3.png'))
+plt.savefig(os.path.join(strHomeDir, 'reports', 'figures', 'multiTaskLearning_hardness.png'))
 
 
 
