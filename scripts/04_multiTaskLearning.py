@@ -66,7 +66,7 @@ dfExp['hardness/load'] = dfExp['hardness'] / dfExp['load']
 plt.hist(dfExp["hardness/load"], bins=20)
 plt.xlabel("Hardness/Load")
 plt.ylabel("Frequency")
-plt.title("Hardness Histogram")
+plt.title("Hardness/Load Histogram")
 
 #%%
 # CLEAN DATA---------------------------------------------------------------------------------------
@@ -131,67 +131,89 @@ the test functions have a single output (voigt bulk modulus and hardness) that i
 
 objective = SingleTargetObjective(target=NumericalTarget(name="Target", mode="MAX"))
 
+# #%%
+# # SIMULATE SCENARIOS-------------------------------------------------------------------------------
+# '''cenarios
+# # def simulateScenario_manual():
+# #     # add intial data
+# use the simulate_scenarios function to simulate the optimization process
+# '''
+
+# # # manually simulate the s
+
+# #     # in a loop
+# #         # recomend
+# #         # add measurement
+# #     pass
+
+# N_MC_ITERATIONS = 10
+# N_DOE_ITERATIONS = 10
+# BATCH_SIZE = 1
+
+# results: list[pd.DataFrame] = []
+# for n in (5, 15, 30):
+#     campaign = Campaign(searchspace=searchspace, objective=objective)
+#     initial_data = [dfLookupTable_source.sample(n) for _ in range(N_MC_ITERATIONS)] # frac = p
+#     result_fraction = simulate_scenarios(
+#         {f"{n}": campaign},                                                # int(100*p)
+#         dfLookupTable_task,
+#         initial_data=initial_data,
+#         batch_size=BATCH_SIZE,
+#         n_doe_iterations=N_DOE_ITERATIONS,
+#     )
+#     results.append(result_fraction)
+
+# # For comparison, we also optimize the function without using any initial data:
+
+# result_baseline = simulate_scenarios(
+#     {"0": Campaign(searchspace=searchspace, objective=objective)},
+#     dfLookupTable_task,
+#     batch_size=BATCH_SIZE,
+#     n_doe_iterations=N_DOE_ITERATIONS,
+#     n_mc_iterations=N_MC_ITERATIONS,
+# )
+
+# results_random = simulate_scenarios(
+#     {"random": Campaign(searchspace=searchspace, objective=objective, recommender=RandomRecommender())},
+#     dfLookupTable_task,
+#     batch_size=BATCH_SIZE,
+#     n_doe_iterations=N_DOE_ITERATIONS,
+#     n_mc_iterations=N_MC_ITERATIONS,
+# )
+
+# results = pd.concat([results_random, result_baseline, *results])
+
+# # build a function for randomly sampling and 
+# # All that remains is to visualize the results.
+# # As the example shows, the optimization speed can be significantly increased by
+# # using even small amounts of training data from related optimization tasks.
+
+# results.rename(columns={"Scenario": "Number of data used"}, inplace=True)
+# # save the results to a dataframe
+# results.to_csv(os.path.join(strHomeDir, 'reports', 'results.csv'))
+
+# ax = sns.lineplot(
+#     data=results,
+#     marker="o",
+#     markersize=10,
+#     x="Num_Experiments",
+#     y="Target_CumBest",
+#     hue="Number of data used",
+# )
+# create_example_plots(ax=ax,
+#                      base_name="multiTask-v3",
+#                      path=os.path.join(strHomeDir, "reports", "figures"))
+
 #%%
-# SIMULATE SCENARIOS-------------------------------------------------------------------------------
-'''cenarios
-# def simulateScenario_manual():
-#     # add intial data
-use the simulate_scenarios function to simulate the optimization process
-'''
+# PLOT RESUTLS-------------------------------------------------------------------------------------
 
-# # manually simulate the s
+# import results
+results = pd.read_csv(os.path.join(strHomeDir, 'reports', 'results.csv'),  index_col=0)
 
-#     # in a loop
-#         # recomend
-#         # add measurement
-#     pass
+# intialize a subplot with 1 row and 1 column
+fig, ax = plt.subplots(1, 1, figsize=(14, 7))
 
-N_MC_ITERATIONS = 10
-N_DOE_ITERATIONS = 10
-BATCH_SIZE = 1
-
-results: list[pd.DataFrame] = []
-for n in (5, 15, 30):
-    campaign = Campaign(searchspace=searchspace, objective=objective)
-    initial_data = [dfLookupTable_source.sample(n) for _ in range(N_MC_ITERATIONS)] # frac = p
-    result_fraction = simulate_scenarios(
-        {f"{n}": campaign},                                                # int(100*p)
-        dfLookupTable_task,
-        initial_data=initial_data,
-        batch_size=BATCH_SIZE,
-        n_doe_iterations=N_DOE_ITERATIONS,
-    )
-    results.append(result_fraction)
-
-# For comparison, we also optimize the function without using any initial data:
-
-result_baseline = simulate_scenarios(
-    {"0": Campaign(searchspace=searchspace, objective=objective)},
-    dfLookupTable_task,
-    batch_size=BATCH_SIZE,
-    n_doe_iterations=N_DOE_ITERATIONS,
-    n_mc_iterations=N_MC_ITERATIONS,
-)
-
-results_random = simulate_scenarios(
-    {"random": Campaign(searchspace=searchspace, objective=objective, recommender=RandomRecommender())},
-    dfLookupTable_task,
-    batch_size=BATCH_SIZE,
-    n_doe_iterations=N_DOE_ITERATIONS,
-    n_mc_iterations=N_MC_ITERATIONS,
-)
-
-results = pd.concat([results_random, result_baseline, *results])
-
-# build a function for randomly sampling and 
-# All that remains is to visualize the results.
-# As the example shows, the optimization speed can be significantly increased by
-# using even small amounts of training data from related optimization tasks.
-
-results.rename(columns={"Scenario": "Number of data used"}, inplace=True)
-# save the results to a dataframe
-results.to_csv(os.path.join(strHomeDir, 'reports', 'results.csv'))
-
+# plot the results
 ax = sns.lineplot(
     data=results,
     marker="o",
@@ -200,9 +222,28 @@ ax = sns.lineplot(
     y="Target_CumBest",
     hue="Number of data used",
 )
-create_example_plots(ax=ax,
-                     base_name="multiTask-v3",
-                     path=os.path.join(strHomeDir, "reports", "figures"))
+
+# add a line at the maximum value
+plt.axhline(y=dfLookupTable_task['Target'].max(), color='r', linestyle='--', label='Max Value')
+
+# add a legend
+plt.legend()
+
+# add a title
+plt.title("Multi-Task Learning Optimization")
+
+# add a x-axis label
+plt.xlabel("Number of Experiments")
+
+# add a y-axis label
+plt.ylabel("Target Cumulative Best")
+
+# save the figure
+plt.savefig(os.path.join(strHomeDir, 'reports', 'figures', 'multiTaskLearning_v3.png'))
+
+
+
+
 
 #%%
 '''
