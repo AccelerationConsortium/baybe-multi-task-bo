@@ -114,6 +114,18 @@ fig, ax = plt.subplots(1, 1, figsize=(8, 5), facecolor='w', edgecolor='k', dpi =
 ax.scatter(dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["load"],
            dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["hardness"])
 
+# make a cubic spline interpolation of the hardness vs load curve
+spSpline = sp.interpolate.CubicSpline(dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["load"],
+                                      dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["hardness"])
+
+# make a range of values from 0.5 to 5 with steps of 0.1
+lstX = np.arange(0.5, 5, 0.1)
+# evaluate the spline at the values in lstX
+lstY = spSpline(lstX)
+
+# plot the spline
+ax.plot(lstX, lstY, color='r')
+
 # add a title, x-aixs label, and y-axis label
 ax.set_title("Hardness vs Load for Y2 Re0.95 Cr0.05 B6")
 ax.set_xlabel("Load")
@@ -139,7 +151,7 @@ for strComposition_temp in dfExp["composition"].unique():
     dfComposition_temp = dfComposition_temp.sort_values(by="load")
     # if there are any duplicate values for load, drop them
     dfComposition_temp = dfComposition_temp.drop_duplicates(subset="load")
-    # if there are less than 4 values, continue to the next composition
+    # if there are less than 5 values, continue to the next composition
     if len(dfComposition_temp) < 5:
         continue
 
@@ -157,22 +169,36 @@ for strComposition_temp in dfExp["composition"].unique():
     # append dfComposition_temp to dfExp_integratedHardness
     dfExp_integratedHardness = pd.concat([dfExp_integratedHardness, dfComposition_temp])
     
+#%%
+# MAKE A HISTOGRAM OF THE INTEGRATED HARDNESS VALUE ------------------------------------------------
+
+# initialize a subplot with 1 row and 1 column
+fig, ax = plt.subplots(1, 1, figsize=(8, 5), facecolor='w', edgecolor='k', dpi = 300, constrained_layout = True)
+
+# plot a histogram of the hardness values
+ax.hist(dfExp_integratedHardness["integratedHardness"], bins=20)
+
+# add a title, x-aixs label, and y-axis label
+ax.set_xlabel("Integrated Hardness")
+ax.set_ylabel("Frequency")
+ax.set_title("Integrated Hardness Distribution")
+
 
 #%%
 # CLEAN DATA---------------------------------------------------------------------------------------
 
 # make a dataframe for the task function (hardness) - dfExp [element columns, load]
-dfSearchSpace_task = dfExp[lstElementCols + ["load"]]
+dfSearchSpace_target = dfExp_integratedHardness[lstElementCols]
 # add a column to dfSearchSpace_task called 'Function' and set all values to 'taskFunction'
-dfSearchSpace_task["Function"] = "taskFunction"
+dfSearchSpace_target["Function"] = "targetFunction"
 
 # make a lookup table for the task function (hardness) - add the 'hardness' column from dfExp to dfSearchSpace_task
-dfLookupTable_task = pd.concat([dfSearchSpace_task, dfExp["hardness"]], axis=1)#/load"]], axis=1)
+dfLookupTable_target = pd.concat([dfSearchSpace_target, dfExp_integratedHardness["integratedHardness"]], axis=1)#/load"]], axis=1)
 # make the 'hardness' column the 'Target' column
-dfLookupTable_task = dfLookupTable_task.rename(columns={"hardness":"Target"})#/load": "Target"})
+dfLookupTable_target = dfLookupTable_target.rename(columns={"integratedHardness":"Target"})#/load": "Target"})
 
 # make a dataframe for the source function (voigt bulk modulus) - dfMP [element columns, load]
-dfSearchSpace_source = dfMP[lstElementCols + ["load"]]
+dfSearchSpace_source = dfMP[lstElementCols]
 # add a column to dfSearchSpace_source called 'Function' and set all values to 'sourceFunction'
 dfSearchSpace_source["Function"] = "sourceFunction"
 
@@ -182,7 +208,7 @@ dfLookupTable_source = pd.concat([dfSearchSpace_source, dfMP["vrh"]], axis=1)
 dfLookupTable_source = dfLookupTable_source.rename(columns={"vrh": "Target"})
 
 # concatenate the two dataframes
-dfSearchSpace = pd.concat([dfSearchSpace_task, dfSearchSpace_source])
+dfSearchSpace = pd.concat([dfSearchSpace_target, dfSearchSpace_source])
 
 #%%
 # GENERATE THE SEARCH SPACE------------------------------------------------------------------------
@@ -203,15 +229,15 @@ for strCol_temp in dfSearchSpace.columns[:-1]:
 # create a TaskParameter
 taskParameter = TaskParameter(
     name="Function",
-    values=["taskFunction", "sourceFunction"],
-    active_values=["taskFunction"],
+    values=["targetFunction", "sourceFunction"],
+    active_values=["targetFunction"],
 )
 
 # append the taskParameter to the list of parameters
 lstParameters.append(taskParameter)
 
 # create the search space
-searchspace = SearchSpace.from_dataframe(dfSearchSpace, parameters=lstParameters)
+searchSpace = SearchSpace.from_dataframe(dfSearchSpace, parameters=lstParameters)
 
 #%%
 # CREATE OPTIMIZATION OBJECTIVE--------------------------------------------------------------------
@@ -242,11 +268,11 @@ BATCH_SIZE = 1
 
 results: list[pd.DataFrame] = []
 for n in (5, 15, 30):
-    campaign = Campaign(searchspace=searchspace, objective=objective)
+    campaign = Campaign(searchspace=searchSpace, objective=objective)
     initial_data = [dfLookupTable_source.sample(n) for _ in range(N_MC_ITERATIONS)] # frac = p
     result_fraction = simulate_scenarios(
         {f"{n}": campaign},                                                # int(100*p)
-        dfLookupTable_task,
+        dfLookupTable_target,
         initial_data=initial_data,
         batch_size=BATCH_SIZE,
         n_doe_iterations=N_DOE_ITERATIONS,
@@ -256,16 +282,16 @@ for n in (5, 15, 30):
 # For comparison, we also optimize the function without using any initial data:
 
 result_baseline = simulate_scenarios(
-    {"0": Campaign(searchspace=searchspace, objective=objective)},
-    dfLookupTable_task,
+    {"0": Campaign(searchspace=searchSpace, objective=objective)},
+    dfLookupTable_target,
     batch_size=BATCH_SIZE,
     n_doe_iterations=N_DOE_ITERATIONS,
     n_mc_iterations=N_MC_ITERATIONS,
 )
 
 results_random = simulate_scenarios(
-    {"random": Campaign(searchspace=searchspace, objective=objective, recommender=RandomRecommender())},
-    dfLookupTable_task,
+    {"random": Campaign(searchspace=searchSpace, objective=objective, recommender=RandomRecommender())},
+    dfLookupTable_target,
     batch_size=BATCH_SIZE,
     n_doe_iterations=N_DOE_ITERATIONS,
     n_mc_iterations=N_MC_ITERATIONS,
@@ -314,7 +340,7 @@ ax = sns.lineplot(
 )
 
 # add a line at the maximum value
-plt.axhline(y=dfLookupTable_task['Target'].max(), color='r', linestyle='--', label='Max Value')
+plt.axhline(y=dfLookupTable_target['Target'].max(), color='r', linestyle='--', label='Max Value')
 
 # add a legend
 plt.legend()
@@ -341,10 +367,6 @@ TODO LIST
 ---------------
 
 1. pull out the simulate_scenarios function and make it manually
-2. change the predictions to hardness / load
-    - to be discussed in the meeting
-3. add random sampling
-4. plot results
 '''
 
 # add random and max
