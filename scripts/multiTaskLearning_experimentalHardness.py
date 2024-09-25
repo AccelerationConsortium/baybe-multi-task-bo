@@ -56,81 +56,81 @@ lstSharedCompositions = list(set(dfMP["composition"]).intersection(set(dfExp["co
 #%%
 # MAKE A HISTOGRAM OF THE HARDNESS VALUE ----------------------------------------------------------
 
-# initialize a subplot with 1 row and 1 column
-fig, ax = plt.subplots(1, 1, figsize=(8, 5), facecolor='w', edgecolor='k', dpi = 300, constrained_layout = True)
+# # initialize a subplot with 1 row and 1 column
+# fig, ax = plt.subplots(1, 1, figsize=(8, 5), facecolor='w', edgecolor='k', dpi = 300, constrained_layout = True)
 
-# plot a histogram of the hardness values
-ax.hist(dfExp["hardness"], bins=20)
+# # plot a histogram of the hardness values
+# ax.hist(dfExp["hardness"], bins=20)
 
-# add a title, x-aixs label, and y-axis label
-ax.set_xlabel("Hardness")
-ax.set_ylabel("Frequency")
-ax.set_title("Hardness Distribution")
+# # add a title, x-aixs label, and y-axis label
+# ax.set_xlabel("Hardness")
+# ax.set_ylabel("Frequency")
+# ax.set_title("Hardness Distribution")
 
 #%%
 # FIND THE DUPLICATE COMPOSITIONS------------------------------------------------------------------
 
-# for each unique composition in dfExp, count the number of times it appears
-srCompositionCounts = dfExp["composition"].value_counts()
+# # for each unique composition in dfExp, count the number of times it appears
+# srCompositionCounts = dfExp["composition"].value_counts()
 
-# initialize a subplot with 1 row and 1 column
-fig, ax = plt.subplots(1, 1, figsize=(8, 5), facecolor='w', edgecolor='k', dpi = 300, constrained_layout = True)
+# # initialize a subplot with 1 row and 1 column
+# fig, ax = plt.subplots(1, 1, figsize=(8, 5), facecolor='w', edgecolor='k', dpi = 300, constrained_layout = True)
 
-# plot a histogram of srCompositionCounts where the x-axis is the number of times a composition appears and the y-axis is the frequency
-lstHeight, lstBins, contPatches = ax.hist(srCompositionCounts, bins=6)
+# # plot a histogram of srCompositionCounts where the x-axis is the number of times a composition appears and the y-axis is the frequency
+# lstHeight, lstBins, contPatches = ax.hist(srCompositionCounts, bins=6)
 
-# calculate the center of each bin
-lstBinCenters = 0.5 * (lstBins[:-1] + lstBins[1:])
-# set the x-ticks to the bin centers
-ax.set_xticks(lstBinCenters)
-# create custom labels based on the bin ranges or integer values
-# for instance, using the left edge of each bin as a label
-lstTickLabels = [f"{int(lstBins[i+1])}" for i in range(len(lstBins)-1)]
-# set the custom tick labels
-ax.set_xticklabels(lstTickLabels)
+# # calculate the center of each bin
+# lstBinCenters = 0.5 * (lstBins[:-1] + lstBins[1:])
+# # set the x-ticks to the bin centers
+# ax.set_xticks(lstBinCenters)
+# # create custom labels based on the bin ranges or integer values
+# # for instance, using the left edge of each bin as a label
+# lstTickLabels = [f"{int(lstBins[i+1])}" for i in range(len(lstBins)-1)]
+# # set the custom tick labels
+# ax.set_xticklabels(lstTickLabels)
 
 
-# add a title, x-aixs label, and y-axis label
-ax.set_title("Composition Frequency")
-ax.set_xlabel("Number of Load Values per Unique Composition")
-ax.set_ylabel("Frequency")
+# # add a title, x-aixs label, and y-axis label
+# ax.set_title("Composition Frequency")
+# ax.set_xlabel("Number of Load Values per Unique Composition")
+# ax.set_ylabel("Frequency")
 
-# add a grid
-ax.grid(True)
+# # add a grid
+# ax.grid(True)
 
 #%%
 # EXAMPLE CURVE FOR A COMPOSITION------------------------------------------------------------------
 
-# initialize a subplot with 1 row and 1 column
-fig, ax = plt.subplots(1, 1, figsize=(8, 5), facecolor='w', edgecolor='k', dpi = 300, constrained_layout = True)
+# # initialize a subplot with 1 row and 1 column
+# fig, ax = plt.subplots(1, 1, figsize=(8, 5), facecolor='w', edgecolor='k', dpi = 300, constrained_layout = True)
 
 
-# plot the hardness vs load for entries with composition Y2 Re0.95 Cr0.05 B6
-ax.scatter(dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["load"],
-           dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["hardness"])
+# # plot the hardness vs load for entries with composition Y2 Re0.95 Cr0.05 B6
+# ax.scatter(dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["load"],
+#            dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["hardness"])
 
-# make a cubic spline interpolation of the hardness vs load curve
-spSpline = sp.interpolate.CubicSpline(dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["load"],
-                                      dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["hardness"])
+# # make a cubic spline interpolation of the hardness vs load curve
+# spSpline = sp.interpolate.CubicSpline(dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["load"],
+#                                       dfExp.loc[dfExp["composition"] == "Y2 Re0.95 Cr0.05 B6"]["hardness"])
 
-# make a range of values from 0.5 to 5 with steps of 0.1
-lstX = np.arange(0.5, 5, 0.1)
-# evaluate the spline at the values in lstX
-lstY = spSpline(lstX)
+# # make a range of values from 0.5 to 5 with steps of 0.1
+# lstX = np.arange(0.5, 5, 0.1)
+# # evaluate the spline at the values in lstX
+# lstY = spSpline(lstX)
 
-# plot the spline
-ax.plot(lstX, lstY, color='r')
+# # plot the spline
+# ax.plot(lstX, lstY, color='r')
 
-# add a title, x-aixs label, and y-axis label
-ax.set_title("Hardness vs Load for Y2 Re0.95 Cr0.05 B6")
-ax.set_xlabel("Load")
-ax.set_ylabel("Hardness")
+# # add a title, x-aixs label, and y-axis label
+# ax.set_title("Hardness vs Load for Y2 Re0.95 Cr0.05 B6")
+# ax.set_xlabel("Load")
+# ax.set_ylabel("Hardness")
 
 
-# add a grid
-ax.grid(True)
-# add minor ticks
-ax.minorticks_on()
+# # add a grid
+# ax.grid(True)
+# # add minor ticks
+# ax.minorticks_on()
 
 #%%
 # FUTHER CLEAN THE DATA BASED ON THE EDA-----------------------------------------------------------
