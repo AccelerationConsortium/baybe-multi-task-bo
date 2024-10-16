@@ -12,11 +12,10 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
-import numpy.matlib as nm
 import pandas as pd
 
 import seaborn as sns
-from baybe import Campaign
+from baybe.campaign import Campaign
 from baybe.objectives import SingleTargetObjective
 from baybe.parameters import NumericalDiscreteParameter, TaskParameter
 from baybe.searchspace import SearchSpace
@@ -169,7 +168,7 @@ intBatchSize = 1
 lstResults_bb: list[pd.DataFrame] = []
 
 # for each value of n in (5, 15, 30)
-for n in (5, 10, 30):
+for n in (2, 4, 6, 30):
     campaign_temp = Campaign(searchspace=searchSpace, objective=objective)
     lstInitialData_temp = [dfLookupTable_source.sample(n) for _ in range(intMCIterations)] # frac = p
     result_fraction = simulate_scenarios(
