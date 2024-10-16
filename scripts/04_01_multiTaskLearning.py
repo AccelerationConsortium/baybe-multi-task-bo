@@ -10,7 +10,6 @@
 # IMPORT DEPENDENCIES------------------------------------------------------------------------------
 import os
 import sys
-
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
@@ -29,14 +28,7 @@ from baybe.targets import NumericalTarget
 from baybe.utils.botorch_wrapper import botorch_function_wrapper
 from baybe.utils.plotting import create_example_plots
 from botorch.test_functions.synthetic import Hartmann
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ExpSineSquared
 from baybe.recommenders import RandomRecommender
-
-# import linear regression model
-from sklearn.linear_model import LinearRegression
-
-from pltTernary import pltTernary
 
 
 #%%
@@ -57,6 +49,9 @@ dfExp = pd.read_csv(
 )
 
 lstElementCols = dfExp.columns.to_list()[4:]
+
+# make a list of the unique compositions that are shared between dfMP and dfExp
+lstSharedCompositions = list(set(dfMP["composition"]).intersection(set(dfExp["composition"])))
 
 #%%
 # MAKE A HISTOGRAM OF THE HARDNESS VALUE ----------------------------------------------------------
@@ -97,7 +92,7 @@ ax.set_xticklabels(lstTickLabels)
 
 # add a title, x-aixs label, and y-axis label
 ax.set_title("Composition Frequency")
-ax.set_xlabel("Number of Times Composition Appears")
+ax.set_xlabel("Number of Load Values per Unique Composition")
 ax.set_ylabel("Frequency")
 
 # add a grid
@@ -168,6 +163,9 @@ for strComposition_temp in dfExp["composition"].unique():
 
     # append dfComposition_temp to dfExp_integratedHardness
     dfExp_integratedHardness = pd.concat([dfExp_integratedHardness, dfComposition_temp])
+
+# extract the strComposition column from dfExp_integratedHardness
+dfExp_integratedHardness["strComposition"].to_csv(os.path.join(strHomeDir, 'data', 'processed', 'strComposition.csv'))
     
 #%%
 # MAKE A HISTOGRAM OF THE INTEGRATED HARDNESS VALUE ------------------------------------------------
@@ -182,6 +180,85 @@ ax.hist(dfExp_integratedHardness["integratedHardness"], bins=20)
 ax.set_xlabel("Integrated Hardness")
 ax.set_ylabel("Frequency")
 ax.set_title("Integrated Hardness Distribution")
+
+#%%
+# CORRELATION BETWEEN INTEGRATED HARDNESS AND VOIGT BULK MODULUS-----------------------------------
+
+# pull the
+dfExp_integratedHardness_shared = dfExp_integratedHardness[dfExp_integratedHardness["composition"].isin(lstSharedCompositions)]
+# add the voigt bulk modulus values from dfMP to dfExp_integratedHardness_shared
+dfExp_integratedHardness_shared = pd.merge(dfExp_integratedHardness_shared, dfMP, on="composition")
+# make a temporary dataframe with only strComposition_x and vrh columns
+dfExp_shared = dfExp_integratedHardness_shared[['strComposition_x', 'vrh']]
+# rename the columns to 'strComposition' and 'vrh'
+dfExp_shared = dfExp_shared.rename(columns={'strComposition_x': 'strComposition', 'vrh': 'vrh'})
+
+# initialize a subplot with 1 row and 1 column
+fig, ax = plt.subplots(1, 1, figsize=(8, 5), facecolor='w', edgecolor='k', dpi = 300, constrained_layout = True)
+# plot a scatter plot of the integrated hardness vs voigt bulk modulus
+ax.scatter(dfExp_integratedHardness_shared["integratedHardness"], dfExp_integratedHardness_shared["vrh"])
+# add a title, x-aixs label, and y-axis label
+ax.set_xlabel("Integrated Hardness")
+ax.set_ylabel("Voigt Bulk Modulus")
+ax.set_title("Integrated Hardness vs Voigt Bulk Modulus")
+
+# calculate the correlation between the integrated hardness and voigt bulk modulus
+fltCorrelation = dfExp_integratedHardness_shared["integratedHardness"].corr(dfExp_integratedHardness_shared["vrh"])
+# add the correlation to the plot
+ax.text(0.1, 0.9, f"Correlation: {fltCorrelation:.2f}", transform=ax.transAxes)
+
+# calculate the r2 value
+fltR2 = fltCorrelation**2
+# add the r2 value to the plot
+ax.text(0.1, 0.8, f"R2: {fltR2:.2f}", transform=ax.transAxes)
+
+# add a grid
+ax.grid(True)
+# add minor grid lines
+ax.minorticks_on()
+
+#%%
+# CORRELATION BETWEEN INTEGRATED HARDNESS AND VOIGT BULK MODULUS (predicted) ----------------------
+
+# pull the predicted bulk modulus values from 'Finder' (https://github.com/ihalage/Finder)
+dfExp_integratedHardness_bulkModulus_pred = pd.read_csv(
+    os.path.join(strHomeDir, "data", "processed", "exp_integratedHardness_bulkModulusPredictions.csv")
+)
+
+# for entries in dfExp_integratedHardness, pull the predicted bulk modulus value from dfExp_integratedHardness_bulkModulus_pred
+dfExp_integratedHardness_wPred = pd.merge(dfExp_integratedHardness, dfExp_integratedHardness_bulkModulus_pred, on="strComposition")
+
+# make another column called 'vrh_pred' and set all values to the 10^[predicted value]
+dfExp_integratedHardness_wPred["vrh_pred"] = 10**dfExp_integratedHardness_wPred["prediction"]
+
+# add the vrh predictions to dfExp_shared
+dfExp_shared = pd.merge(dfExp_shared, dfExp_integratedHardness_wPred[["strComposition", "vrh_pred"]], on="strComposition")
+
+# initialize a subplot with 1 row and 1 column
+fig, ax = plt.subplots(1, 1, figsize=(8, 5), facecolor='w', edgecolor='k', dpi = 300, constrained_layout = True)
+# plot a scatter plot of the integrated hardness vs voigt bulk modulus
+ax.scatter(dfExp_integratedHardness_wPred["integratedHardness"], dfExp_integratedHardness_wPred["vrh_pred"])
+# add a title, x-aixs label, and y-axis label
+ax.set_xlabel("Integrated Hardness")
+ax.set_ylabel("Voigt Bulk Modulus (Predicted)")
+ax.set_title("Integrated Hardness vs Voigt Bulk Modulus (Predicted)")
+
+# calculate the correlation between the integrated hardness and voigt bulk modulus
+fltCorrelation = dfExp_integratedHardness_wPred["integratedHardness"].corr(dfExp_integratedHardness_wPred["vrh_pred"])
+# add the correlation to the plot
+ax.text(0.1, 0.9, f"Pearson Correlation: {fltCorrelation:.2f}", transform=ax.transAxes)
+
+import scipy.stats as stats
+slope, intercept, r_value, p_value, std_err = stats.linregress(dfExp_integratedHardness_wPred["integratedHardness"],dfExp_integratedHardness_wPred["vrh_pred"])
+# add the r2 value to the plot
+ax.text(0.1, 0.8, f"R2: {r_value**2:.2f}", transform=ax.transAxes)
+
+# add a grid
+ax.grid(True)
+# add minor grid lines
+ax.minorticks_on()
+
+
 
 
 #%%
@@ -289,6 +366,8 @@ result_baseline = simulate_scenarios(
     n_mc_iterations=N_MC_ITERATIONS,
 )
 
+# !!!!! ADD A 0 WITHOUT TASK PARAMETER (NOT MULTI-TASK LEARNING)
+
 results_random = simulate_scenarios(
     {"random": Campaign(searchspace=searchSpace, objective=objective, recommender=RandomRecommender())},
     dfLookupTable_target,
@@ -308,17 +387,7 @@ results.rename(columns={"Scenario": "Number of data used"}, inplace=True)
 # save the results to a dataframe
 results.to_csv(os.path.join(strHomeDir, 'reports', 'results_hardnessOnly.csv'))
 
-# ax = sns.lineplot(
-#     data=results,
-#     marker="o",
-#     markersize=10,
-#     x="Num_Experiments",
-#     y="Target_CumBest",
-#     hue="Number of data used",
-# )
-# create_example_plots(ax=ax,
-#                      base_name="multiTask-v3",
-#                      path=os.path.join(strHomeDir, "reports", "figures"))
+
 
 #%%
 # PLOT RESUTLS-------------------------------------------------------------------------------------
@@ -352,7 +421,7 @@ plt.title("Multi-Task Learning Optimization")
 plt.xlabel("Number of Experiments")
 
 # add a y-axis label
-plt.ylabel("Target Cumulative Best - Hardness")
+plt.ylabel("Target Cumulative Best - integratedHardness")
 
 # save the figure
 plt.savefig(os.path.join(strHomeDir, 'reports', 'figures', 'multiTaskLearning_hardness.png'))
@@ -368,268 +437,3 @@ TODO LIST
 
 1. pull out the simulate_scenarios function and make it manually
 '''
-
-# add random and max
-
-# # downselect the dataframes to only include the best combination
-# dfMP = dfMP.loc[lstId_mp]
-# dfExp = dfExp.loc[lstId_exp]
-
-# # -----MP-----
-# # initialize a list to store the columns with all zeros
-# lstZeroCols_mp = []
-# # initialize a list to store the columns with non-zero values
-# lstNonZeroCols_mp = []
-
-# for strCol_temp in lstElementCols:
-#     if dfMP[strCol_temp].sum() == 0:
-#         lstZeroCols_mp.append(strCol_temp)
-#     else:
-#         lstNonZeroCols_mp.append(strCol_temp)
-
-# # drop the columns with all zeros
-# dfMP.drop(columns=lstZeroCols_mp, inplace=True)
-
-# # -----EXP-----
-# # initialize a list to store the columns with all zeros
-# lstZeroCols_exp = []
-# # initialize a list to store the columns with non-zero values
-# lstNonZeroCols_exp = []
-# for strCol_temp in lstElementCols:
-#     if dfExp[strCol_temp].sum() == 0:
-#         lstZeroCols_exp.append(strCol_temp)
-#     else:
-#         lstNonZeroCols_exp.append(strCol_temp)
-
-# # drop the columns with all zeros
-# dfExp.drop(columns=lstZeroCols_exp, inplace=True)
-
-# # %%
-# # PLOT THE DATA-------------------------------------------------------------------------------------
-
-# # -----MP-----
-
-# pltTernary(
-#     dfCompositionData=dfMP[lstNonZeroCols_mp] * 100,
-#     lstElements=lstNonZeroCols_mp,
-#     srColor=dfMP["voigt"],
-#     strColorBarLabel="Voigt Bulk Modulus",
-#     strTitle="MP Data",
-#     intMarkerSize=100,
-#     strSavePath=os.path.join(strHomeDir, "reports", "figures", "mpData.png"),
-
-# )
-
-# # -----EXP-----
-# pltTernary(
-#     dfCompositionData=dfExp[lstNonZeroCols_exp] * 100,
-#     lstElements=lstNonZeroCols_exp,
-#     srColor=dfExp["hardness"],
-#     strColorBarLabel="Hardness",
-#     strTitle="EXP Data",
-#     intMarkerSize=100,
-#     strSavePath=os.path.join(strHomeDir, "reports", "figures", "expData.png"),
-# )
-
-
-# # %%
-# # TRAIN A GAUSSIAN PROCESS REGRESSOR---------------------------------------------------------------
-# """
-# the Gaussian Process Regressor is trained on the MP data to predict the voigt bulk modulus and
-# another one is trained on the Exp data to predict the hardness. Each model will then be used to
-# predict the the same values for a more filled in grid of the elements. These predictions will be
-# used to generate the lookup tables for the test functions. (ie. the test functions will be the
-# ground truth values of the voigt bulk modulus and hardness)
-# """
-
-# # make a grid of test points (0 to 1 with steps of 0.02 for each element in lstNonZeroCols_exp)
-# lstTestPoints = np.meshgrid(*[np.arange(0, 1.02, 0.02) for _ in lstNonZeroCols_exp])
-# # make a dataframe of the test points
-# dfX_test_mp = pd.DataFrame(
-#     {
-#         strElement: lstTestPoints[idx].ravel()
-#         for idx, strElement in enumerate(lstNonZeroCols_exp)
-#     }
-# )
-# # round the values to 2 decimal places
-# dfX_test_mp = dfX_test_mp.round(2)
-# # remove rows where the sum of the row is not equal to 1
-# dfX_test_mp = dfX_test_mp[np.isclose(dfX_test_mp.sum(axis=1), 1, atol=1e-3)]
-# # sort dfX_test_mp by the columns
-# dfX_test_mp = dfX_test_mp.sort_values(by=lstNonZeroCols_exp)
-# # reset the index
-# dfX_test_mp.reset_index(drop=True, inplace=True)
-
-# # make a dataframe of the test points
-# dfX_test_exp = pd.DataFrame(
-#     {
-#         strElement: lstTestPoints[idx].ravel()
-#         for idx, strElement in enumerate(lstNonZeroCols_exp)
-#     }
-# )
-# # round the values to 2 decimal places
-# dfX_test_exp = dfX_test_exp.round(2)
-# # remove rows where the sum of the row is not equal to 1
-# dfX_test_exp = dfX_test_exp[np.isclose(dfX_test_exp.sum(axis=1), 1, atol=1e-3)]
-# # sort dfX_test_exp by the columns
-# dfX_test_exp = dfX_test_exp.sort_values(by=lstNonZeroCols_exp)
-# # reset the index
-# dfX_test_exp.reset_index(drop=True, inplace=True)
-
-
-# # train the Gaussian Process Regressor on the MP data
-
-# gp_mp = LinearRegression()
-# gp_mp.fit(dfMP[lstNonZeroCols_exp], dfMP["voigt"])
-
-# # train the Gaussian Process Regressor on the EXP data
-# gp_exp = LinearRegression()
-# gp_exp.fit(dfExp[lstNonZeroCols_exp], dfExp["hardness"])
-
-# # predict the voigt bulk modulus and make it a series
-# srY_test_mp = pd.Series(gp_mp.predict(dfX_test_mp), name="voigt")
-# # predict the hardness and make it a series
-# srY_test_exp = pd.Series(gp_exp.predict(dfX_test_exp), name="hardness")
-
-# # -----PLOT THE PREDICTIONS-----
-
-# # -----MP-----
-# pltTernary(
-#     dfCompositionData=dfX_test_mp * 100,
-#     lstElements=lstNonZeroCols_exp,
-#     srColor=srY_test_mp,
-#     strColorBarLabel="Voigt Bulk Modulus",
-#     strTitle="LR Voigt Bulk Modulus",
-#     intMarkerSize=100,
-#     strSavePath=os.path.join(strHomeDir, "reports", "figures", "mpPredictions.png"),
-# )
-
-# # -----EXP-----
-# pltTernary(
-#     dfCompositionData=dfX_test_exp * 100,
-#     lstElements=lstNonZeroCols_exp,
-#     srColor=srY_test_exp,
-#     strColorBarLabel="Hardness",
-#     strTitle="LR Hardness",
-#     intMarkerSize=100,
-#     strSavePath=os.path.join(strHomeDir, "reports", "figures", "expPredictions.png"),
-# )
-
-
-# # %%
-# # GENERATE LOOKUP TABLES---------------------------------------------------------------------------
-# """
-# the lookup tables are generated from the predictions of the Gaussian Process Regressors
-# """
-
-# # -----MP-----
-# lookup_training_task = pd.concat([dfX_test_mp.round(2), srY_test_mp], axis=1)
-# lookup_training_task["Function"] = "Training_Function"
-# # change voigt to target
-# lookup_training_task = lookup_training_task.rename(columns={"voigt": "Target"})
-# # cast everything in the Target column to float
-# lookup_training_task["Target"] = lookup_training_task["Target"].astype(float)
-
-# # -----EXP-----
-# lookup_test_task = pd.concat([dfX_test_exp.round(2), srY_test_exp], axis=1)
-# lookup_test_task["Function"] = "Test_Function"
-# # change hardness to target
-# lookup_test_task = lookup_test_task.rename(columns={"hardness": "Target"})
-# # cast everything in the Target column to float
-# lookup_test_task["Target"] = lookup_test_task["Target"].astype(float)
-
-
-# # %%
-# # CREATE OPTIMIZATION OBJECTIVE--------------------------------------------------------------------
-# """
-# the test functions have a single output (voigt bulk modulus and hardness) that is to be maximized
-# """
-
-# objective = SingleTargetObjective(target=NumericalTarget(name="Target", mode="MAX"))
-
-# # %%
-# # CREATE SEARCH SPACE-------------------------------------------------------------------------------
-# """
-# the bounds of the search space are dictated by the upper and lower bounds of each of the elements
-# """
-
-# lstContinuousParameters = [
-#     NumericalDiscreteParameter(
-#         name=f"{strElement}",
-#         values=np.arange(0, 1.02, 0.02).round(2),
-#     )
-#     for strElement in ['a', 'b', 'c']#lstNonZeroCols_exp
-# ]
-
-# SumConstraint = [
-#     DiscreteSumConstraint(
-#         parameters=['a', 'b', 'c'],#lstNonZeroCols_exp,
-#         condition=ThresholdCondition(  # set condition that should apply to the sum
-#             threshold=1.0,
-#             operator="=",
-#             tolerance=0.001,  # optional; here, everything between 0.999 and 1.001 would also be considered valid
-#         ),
-#     )
-# ]
-
-# taskParameters = TaskParameter(
-#     name="Function",
-#     values=["Test_Function", "Training_Function"],
-#     active_values=["Test_Function"],
-# )
-
-# lstParameters = [*lstContinuousParameters, taskParameters]
-
-# searchspace = SearchSpace.from_product(
-#     parameters=lstParameters, constraints=SumConstraint
-# )
-
-# # %%
-
-# N_MC_ITERATIONS = 10
-# N_DOE_ITERATIONS = 10
-# BATCH_SIZE = 1
-
-# results: list[pd.DataFrame] = []
-# for p in (0.01, 0.05, 0.1):
-#     campaign = Campaign(searchspace=searchspace, objective=objective)
-#     initial_data = [lookup_training_task.sample(frac=p) for _ in range(N_MC_ITERATIONS)]
-#     result_fraction = simulate_scenarios(
-#         {f"{int(100*p)}": campaign},
-#         lookup_test_task,
-#         initial_data=initial_data,
-#         batch_size=BATCH_SIZE,
-#         n_doe_iterations=N_DOE_ITERATIONS,
-#     )
-#     results.append(result_fraction)
-
-# # For comparison, we also optimize the function without using any initial data:
-
-# result_baseline = simulate_scenarios(
-#     {"0": Campaign(searchspace=searchspace, objective=objective)},
-#     lookup_test_task,
-#     batch_size=BATCH_SIZE,
-#     n_doe_iterations=N_DOE_ITERATIONS,
-#     n_mc_iterations=N_MC_ITERATIONS,
-# )
-# results = pd.concat([result_baseline, *results])
-
-# # All that remains is to visualize the results.
-# # As the example shows, the optimization speed can be significantly increased by
-# # using even small amounts of training data from related optimization tasks.
-
-# results.rename(columns={"Scenario": "% of data used"}, inplace=True)
-# ax = sns.lineplot(
-#     data=results,
-#     marker="o",
-#     markersize=10,
-#     x="Num_Experiments",
-#     y="Target_CumBest",
-#     hue="% of data used",
-# )
-# create_example_plots(ax=ax,
-#                      base_name="multitask learning",
-#                      path=os.path.join(strHomeDir, "reports", "figures"))
-
-# # %%
-# %%

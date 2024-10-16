@@ -280,8 +280,7 @@ results = pd.concat([results_random, result_baseline, *results])
 
 results.rename(columns={"Scenario": "Number of data used"}, inplace=True)
 # save the results to a dataframe
-results.to_csv(os.path.join(strHomeDir, 'reports', 'results_hardnessOnly.csv'))
-
+# results.to_csv(os.path.join(strHomeDir, 'reports', 'results_hardnessOnly.csv'))
 # ax = sns.lineplot(
 #     data=results,
 #     marker="o",

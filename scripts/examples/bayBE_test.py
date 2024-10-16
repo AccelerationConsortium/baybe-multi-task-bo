@@ -7,10 +7,9 @@
 @Desc    :   test working with BayBE using the example on github
 """
 
-from baybe.objectives import SingleTargetObjective
-
 # %%
 from baybe.targets import NumericalTarget
+from baybe.objectives import SingleTargetObjective
 
 target = NumericalTarget(
     name="Yield",
@@ -75,4 +74,3 @@ print(df)
 # %%
 df["Yield"] = [79.8, 54.1, 59.4]
 campaign.add_measurements(df)
-# %%
