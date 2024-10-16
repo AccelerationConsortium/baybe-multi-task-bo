@@ -3,6 +3,7 @@ from ax.core.observation import ObservationFeatures
 from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
 from ax.modelbridge.registry import Models
 from ax.modelbridge.transforms.task_encode import TaskChoiceToIntTaskChoice
+from ax.modelbridge.transforms.choice_encode import ChoiceToNumericChoice
 from ax.modelbridge.transforms.unit_x import UnitX
 from ax.service.ax_client import AxClient, ObjectiveProperties
 
@@ -36,7 +37,7 @@ def shifted_inverted_branin(x1, x2, c1):
 
 set_seeds()  # setting the random seed for reproducibility
 
-transforms = [TaskChoiceToIntTaskChoice, UnitX]
+transforms = [TaskChoiceToIntTaskChoice, UnitX, ChoiceToNumericChoice]
 
 gs = GenerationStrategy(
     name="MultiTaskOp",
