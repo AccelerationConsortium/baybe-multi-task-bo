@@ -14,6 +14,7 @@ import os
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
 from baybe.campaign import Campaign
 from baybe.objectives import SingleTargetObjective
 from baybe.parameters import NumericalDiscreteParameter, TaskParameter
@@ -174,11 +175,43 @@ result_baseline = simulate_scenarios(
 )
 results = pd.concat([result_baseline, *results])
 
+# for another comparision, we also optimize the function without and initial
+# data and only using the training data (no transfer learning)
+
+parameters_noTask = [*discrete_params]
+searchspace_noTask = SearchSpace.from_product(parameters=parameters_noTask)
+
+# generate the lookup table for the training function
+lookup_training_task_noTask = lookups["Training_Function"]
+
+result_noTask = simulate_scenarios(
+    {"noTask": Campaign(searchspace=searchspace_noTask, objective=objective)},
+    lookup_training_task_noTask,
+    batch_size=BATCH_SIZE,
+    n_doe_iterations=N_DOE_ITERATIONS,
+    n_mc_iterations=N_MC_ITERATIONS,
+)
+
+results = pd.concat([result_noTask, results])
+
+
 # All that remains is to visualize the results.
 # As the example shows, the optimization speed can be significantly increased by
 # using even small amounts of training data from related optimization tasks.
 
 results.rename(columns={"Scenario": "% of data used"}, inplace=True)
+# ax = sns.lineplot(
+#     data=results,
+#     marker="o",
+#     markersize=10,
+#     x="Num_Experiments",
+#     y="Target_CumBest",
+#     hue="% of data used",
+# )
+# intialize a subplot with 1 row and 1 column
+fig, ax = plt.subplots(1, 1, figsize=(15, 5))
+
+# plot the results
 ax = sns.lineplot(
     data=results,
     marker="o",
@@ -187,8 +220,26 @@ ax = sns.lineplot(
     y="Target_CumBest",
     hue="% of data used",
 )
+
+# add a line at the maximum value
+# plt.axhline(y=Hartmann(dim=DIMENSION).global_min, color="r", linestyle="--", label="Min Value")
+
+# add a legend
+plt.legend()
+
+# add a title
+# plt.title("Multi-Task Learning Optimization")
+
+# add a x-axis label
+plt.xlabel("Number of Experiments")
+
+# add a y-axis label
+plt.ylabel("Target Cumulative Best")
+
 if boolSaveResults:
-    create_example_plots(ax=ax, base_name="example", path=strPathToSave)
-# create_example_plots(ax=ax, base_name="example", path=strPathToSave)
+    # save the dataframe
+    results.to_csv(os.path.join(strPathToSave, "dfResults.csv"))
+    # save the plot
+    plt.savefig(os.path.join(strPathToSave, "Results.png"))
 
 # %%

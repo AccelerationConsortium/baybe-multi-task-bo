@@ -278,6 +278,7 @@ dfSearchSpace = pd.concat([dfSearchSpace_target, dfSearchSpace_source])
 # ----- GENERATE THE SEARCH SPACE -----
 
 lstParameters_bb = []
+lstParameters_bb_noTask = []
 
 # for each column in dfSearchSpace except the last one, create a NumericalDiscreteParameter
 for strCol_temp in dfSearchSpace.columns[:-1]:
@@ -289,6 +290,7 @@ for strCol_temp in dfSearchSpace.columns[:-1]:
     )
     # append the parameter to the list of parameters
     lstParameters_bb.append(bbParameter_temp)
+    lstParameters_bb_noTask.append(bbParameter_temp)
 
 # create a TaskParameter
 bbTaskParameter = TaskParameter(
@@ -302,6 +304,7 @@ lstParameters_bb.append(bbTaskParameter)
 
 # create the search space
 bbSearchSpace = SearchSpace.from_dataframe(dfSearchSpace, parameters=lstParameters_bb)
+bbSearchSpace_noTask = SearchSpace.from_dataframe(dfSearchSpace_target[lstElementCols], parameters=lstParameters_bb_noTask)
 
 # ----- CREATE OPTIMIZATION OBJECTIVE -----
 
@@ -315,8 +318,9 @@ intBatchSize = 1
 lstResults_bb: list[pd.DataFrame] = []
 
 for n in (2, 4, 6, 30):
-
-    # *** REINITIALIZE SEARCH SPACE ***
+    # reinitialize the search space
+    bbSearchSpace = SearchSpace.from_dataframe(dfSearchSpace, parameters=lstParameters_bb)
+    # reinitialize the campaign
     bbCampaign_temp = Campaign(
         searchspace=bbSearchSpace,
         objective=bbObjective)
@@ -332,7 +336,10 @@ for n in (2, 4, 6, 30):
         n_doe_iterations=intDOEIterations,
     )
     lstResults_bb.append(dfResult_bb_mtl_temp)
-# *** REINITIALIZE SEARCH SPACE ***
+
+# reinitialize the search space
+bbSearchSpace = SearchSpace.from_dataframe(dfSearchSpace, parameters=lstParameters_bb)
+# reinitialize the campaign
 dfResult_bb_baseline = simulate_scenarios(
     {"0": Campaign(
         searchspace=bbSearchSpace,
@@ -342,7 +349,10 @@ dfResult_bb_baseline = simulate_scenarios(
     n_doe_iterations=intDOEIterations,
     n_mc_iterations=intMCIterations,
 )
-# *** REINITIALIZE SEARCH SPACE ***
+
+# reinitialize the search space
+bbSearchSpace = SearchSpace.from_dataframe(dfSearchSpace_target[lstElementCols], parameters=lstParameters_bb_noTask)
+# reinitialize the campaign
 dfResults_bb_random = simulate_scenarios(
     {"random": Campaign(
         searchspace=bbSearchSpace,
@@ -354,10 +364,26 @@ dfResults_bb_random = simulate_scenarios(
     n_mc_iterations=intMCIterations,
 )
 
-dfResults_bb = pd.concat([dfResults_bb_random, dfResult_bb_baseline, *lstResults_bb])
+# run a campaign without the task parameter
+dfResults_bb_noTask = simulate_scenarios(
+    {"noTask_bb": Campaign(
+        searchspace=bbSearchSpace_noTask,
+        objective=bbObjective)},
+    dfLookupTable_target,
+    batch_size=intBatchSize,
+    n_doe_iterations=intDOEIterations,
+    n_mc_iterations=intMCIterations,
+)
+
+#%%
+# PLOT BAYBE RESULTS ------------------------------------------------------------------------------
+dfResults_bb = pd.concat([dfResults_bb_random, dfResult_bb_baseline, dfResults_bb_noTask, *lstResults_bb])
 dfResults_bb.rename(columns={"Scenario": "Number of data used"}, inplace=True)
-# import results
-# dfResults_bb = pd.read_csv(os.path.join(strHomeDir, 'reports', 'results_integratedHardness_final.csv'),  index_col=0)
+
+# save the results
+if boolSaveResults:
+    # save the dataframe
+    dfResults_bb.to_csv(os.path.join(strPathToSave, "dfResults_bb.csv"))
 
 # ----- PLOT BB RESULTS -----
 # intialize a subplot with 1 row and 1 column
@@ -413,6 +439,17 @@ lstParameters_ax = [
     for strCol_temp in dfSearchSpace.columns[:-1]
 ]
 
+# make a list of dictionaries for the parameters (each dictionary is one of the elements in the list)
+lstParameters_ax_noTask = [
+    {
+        "name": strCol_temp,
+        "type": "range",
+        "value_type": "float",
+        "bounds": [np.unique(dfSearchSpace_target[strCol_temp]).min(), np.unique(dfSearchSpace_target[strCol_temp]).max()],
+    }
+    for strCol_temp in dfSearchSpace_target.columns[:-1]
+]
+
 # add the task parameter
 lstParameters_ax.append(
     {
@@ -441,10 +478,22 @@ axGenerationStrategy = GenerationStrategy(
     ],
 )
 
+axGenerationStrategy_noTask = GenerationStrategy(
+    name="noTask",
+    steps=[
+        GenerationStep(
+            model=Models.BOTORCH_MODULAR,
+            num_trials=-1,
+            max_parallelism=10,
+            model_kwargs={"transforms": lstTransforms},
+        ),
+    ],
+)
+
 # initialize a dataframe to store the results
 dfResults_ax = pd.DataFrame()
 
-for n_preTrain in (2, 4, 6):
+for n_preTrain in (0, 2, 4, 6):
     # generate a list of 10 random integers between 0 and 100000 
     lstMCIterations = [1337, 1338, 2112, 1233, 99987]
     intMCRun = 0
@@ -535,6 +584,95 @@ for n_preTrain in (2, 4, 6):
 
         intMCRun += 1
 
+# run the experiment without the task parameter
+for intMC in lstMCIterations:
+    np.random.seed(intMC)
+
+    # initialize the ax client
+    axClient = AxClient(
+        generation_strategy=axGenerationStrategy_noTask,
+        random_seed=intMC,
+        verbose_logging=False
+    )
+
+    # create the experiment
+    axClient.create_experiment(
+        name="noTask",
+        parameters=lstParameters_ax_noTask,
+        objectives={"Objective": ObjectiveProperties(minimize=False)},
+    )
+
+    # add an initial data point
+    preTrainAx(axClient, dfLookupTable_target.drop(columns='Function'), 2)
+
+    # optimize the experiment
+    for i in range(intDOEIterations):
+        # fit the model
+        axClient.fit_model()
+        axModel_temp = axClient.generation_strategy.model
+
+        # get the observation features
+        lstObservationFeatures = [
+            ObservationFeatures(row.to_dict())
+            for _, row in dfSearchSpace_target.drop(columns='Function').iterrows()
+        ]
+
+        # get the acquisition function
+        lstAquisitionFunctionValues = np.array(
+            axModel_temp.evaluate_acquisition_function(
+                observation_features=lstObservationFeatures
+            )
+        )
+
+        # get the index of the maximum value
+        intBestID = np.argmax(lstAquisitionFunctionValues)
+        dicBestRow = dfSearchSpace_target.drop(columns='Function').iloc[intBestID].to_dict()
+
+        # extract the element columns from the best row
+        lstBestElementCols = {k: v for k, v in dicBestRow.items() if k in lstElementCols}
+
+        # find the row in dfLookupTable_target that matches the best element columns
+        dfBestRow = dfLookupTable_target[
+            (dfLookupTable_target[lstElementCols] == pd.Series(lstBestElementCols)).all(axis=1)
+        ]
+
+        dfBestRow = dfBestRow.drop(columns='Function')
+
+        # extract the target value from the best row
+        fltBestTarget = dfBestRow["Target"].values[0] if not dfBestRow.empty else None
+
+        # add the best row to the experiment
+        _, trial_index = axClient.attach_trial(parameters=dicBestRow)
+        axClient.complete_trial(trial_index=trial_index, raw_data={"Objective": fltBestTarget})
+
+    # STORE THE RESULTS
+
+    # initialize an index for the results
+    intNumTrial_temp = 2
+    
+    # get the data from the experiment
+    dfResults_temp = axClient.get_trials_data_frame()
+    # drop the first n_preTrain trials from the dataframe
+    dfResults_temp.drop(range(intNumTrial_temp), inplace=True)
+    # add a another column to the dataframe called 'Num_Experiments' and set all values to trial_index - intNumTrials
+    dfResults_temp["Num_Experiments"] = dfResults_temp["trial_index"] - intNumTrial_temp + 1
+    # add a column to the dataframe called 'Num_MC' and set all values to n_MC
+    dfResults_temp["Monte_Carlo_Run"] = intMCRun
+    # add a column called 'Number of data used' and set all values to n_preTrain
+    dfResults_temp["Number of data used"] = 'noTask_ax'
+    # add a column called 'Target_CumBest' and set all values to the cumulative maximum of the 'Objective' column for the entries before the current entry
+    dfResults_temp["Target_CumBest"] = dfResults_temp["Objective"].cummax()
+
+    # append dfResults_temp to dfResults_ax
+    dfResults_ax = pd.concat([dfResults_ax, dfResults_temp])
+
+# save the results
+if boolSaveResults:
+    # save the dataframe
+    dfResults_ax.to_csv(os.path.join(strPathToSave, "dfResults_ax.csv"))
+
+#%%
+# PLOT AX RESULTS ---------------------------------------------------------------------------------
 # ---- PLOT AX RESULTS -----
 
 # intialize a subplot with 1 row and 1 column
@@ -582,7 +720,7 @@ dfResults_ax["Number of data used"] = dfResults_ax["Number of data used"].astype
 dfResults_combined = pd.concat([dfResults_bb, dfResults_ax])
 
 # intialize a subplot with 1 row and 1 column
-fig, ax = plt.subplots(1, 1, figsize=(14, 7))
+fig, ax = plt.subplots(1, 1, figsize=(15, 5))
 
 # plot the results
 ax = sns.lineplot(
@@ -600,8 +738,8 @@ plt.axhline(y=dfLookupTable_target['Target'].max(), color='r', linestyle='--', l
 # add a legend
 plt.legend()
 
-# add a title
-plt.title("Multi-Task Learning Optimization")
+# # add a title
+# plt.title("Multi-Task Learning Optimization")
 
 # add a x-axis label
 plt.xlabel("Number of Experiments")
