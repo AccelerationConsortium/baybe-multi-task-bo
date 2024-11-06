@@ -29,7 +29,7 @@ import argparse
 #%%
 #ARGPARSER---------------------------------------------------------------------------------------
 parse = argparse.ArgumentParser(
-    description='Grow datasets with different growing methods.'
+    description='Run the multi-task optimization benchmarking for the Hartmann function'
 )
 
 parse.add_argument('--saveResults', type=bool, required=True)
