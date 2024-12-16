@@ -74,6 +74,7 @@ objective = SingleTargetObjective(target=NumericalTarget(name="Target", mode="MI
 # define scenario
 df_result = simulate_scenarios(
     {"Default Recommender": Campaign(searchspace=searchspace,objective=objective)},
+    adv_opt, 
     batch_size=BATCH_SIZE,
     n_doe_iterations=N_DOE_ITERATIONS,
     n_mc_iterations=N_MC_ITERATIONS,
