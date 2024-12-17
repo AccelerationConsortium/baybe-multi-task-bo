@@ -108,8 +108,8 @@ def adv_opt_y2(c1, c2, c3, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x1
 # lookup_testing_y1['Function'] = "TestingY1"
 
 # # save lookup_training_y2 and lookup_testing_y1 to csv
-# lookup_testing_y1.to_csv("BayBE_lookup_testing_y1.csv", index=False)
-# lookup_training_y2.to_csv("BayBE_lookup_training_y2.csv", index=False)
+# lookup_testing_y1.to_csv("CrabNet_lookup_testing_y1.csv", index=False)
+# lookup_training_y2.to_csv("CrabNet_lookup_training_y2.csv", index=False)
 
 #%%
 ### Define and create the search space
@@ -165,8 +165,8 @@ test_functions = {
 
 #%% 
 # Read the initial data 
-lookup_training_y2 = pd.read_csv("BayBE_lookup_training_y2.csv")
-lookup_testing_y1 = pd.read_csv("BayBE_lookup_testing_y1.csv")
+lookup_training_y2 = pd.read_csv("CrabNet_lookup_training_y2.csv")
+lookup_testing_y1 = pd.read_csv("CrabNet_lookup_testing_y1.csv")
 
 # settings 
 BATCH_SIZE = 1  # batch size of recommendations per DOE iteration
